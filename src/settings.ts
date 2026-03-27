@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type ArcadiaProjectsPlugin from "./main";
 import { ArcadiaProjectsSettings } from "./types";
+import { validateLicense } from "./license";
 
 export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 	plugin: ArcadiaProjectsPlugin;
@@ -103,16 +104,58 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h3", { text: "License" });
 
+		const licenseStatus = this.plugin.settings.licenseStatus;
+		const isPro = this.plugin.settings.isPro && licenseStatus?.valid;
+		const statusDesc = isPro
+			? `Active${licenseStatus?.customerEmail ? ` (${licenseStatus.customerEmail})` : ""}${licenseStatus?.expiresAt ? ` - expires ${licenseStatus.expiresAt}` : ""}`
+			: "No active license. Enter your license key and click Validate.";
+
+		const licenseStatusEl = containerEl.createEl("p", {
+			text: `License status: ${statusDesc}`,
+			cls: isPro ? "mod-success" : "mod-warning",
+		});
+
 		new Setting(containerEl)
 			.setName("License key")
-			.setDesc("Enter your Arcadia Pro license key (optional)")
+			.setDesc("Enter your Arcadia Projects Premium license key from Lemon Squeezy.")
 			.addText((text) =>
 				text
-					.setPlaceholder("Enter license key")
+					.setPlaceholder("XXXX-XXXX-XXXX-XXXX")
 					.setValue(this.plugin.settings.licenseKey)
 					.onChange(async (value) => {
 						this.plugin.settings.licenseKey = value.trim();
 						await this.plugin.saveSettings();
+					})
+			)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Validate")
+					.setCta()
+					.onClick(async () => {
+						const key = this.plugin.settings.licenseKey.trim();
+						if (!key) return;
+						btn.setButtonText("Checking...").setDisabled(true);
+						const status = await validateLicense(key);
+						this.plugin.settings.licenseStatus = status;
+						this.plugin.settings.isPro = status.valid;
+						await this.plugin.saveSettings();
+						btn.setButtonText("Validate").setDisabled(false);
+						if (status.valid) {
+							licenseStatusEl.textContent = `License status: Active${status.customerEmail ? ` (${status.customerEmail})` : ""}`;
+							licenseStatusEl.className = "mod-success";
+						} else {
+							licenseStatusEl.textContent = "License status: Invalid or expired. Check your key and try again.";
+							licenseStatusEl.className = "mod-warning";
+						}
+					})
+			);
+
+		new Setting(containerEl)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Get Arcadia Projects Premium")
+					.onClick(() => {
+						window.open("https://arcadia-studio.lemonsqueezy.com", "_blank");
 					})
 			);
 	}

@@ -1,4 +1,5 @@
 import { TFile } from "obsidian";
+import type { LicenseStatus } from './license';
 
 export const VIEW_TYPE_ARCADIA_PROJECTS = "arcadia-projects-view";
 
@@ -12,6 +13,7 @@ export interface ArcadiaProjectsSettings {
 	defaultView: ViewMode;
 	cardFields: string[];
 	licenseKey: string;
+	licenseStatus: LicenseStatus | null;
 	isPro: boolean;
 }
 
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: ArcadiaProjectsSettings = {
 	defaultView: "table",
 	cardFields: ["status", "due", "tags"],
 	licenseKey: "",
+	licenseStatus: null,
 	isPro: false,
 };
 
