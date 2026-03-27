@@ -1,0 +1,337 @@
+/* ============================================================
+   Arcadia Projects - Styles
+   All colors use Obsidian CSS variables for theme compatibility
+   ============================================================ */
+
+/* Root container */
+.arcadia-projects-root {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* ---- Toolbar ---- */
+.arcadia-projects-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	flex-shrink: 0;
+}
+
+.arcadia-projects-tabs {
+	display: flex;
+	gap: 4px;
+}
+
+.arcadia-projects-tab {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	transition: background 0.15s, color 0.15s;
+}
+
+.arcadia-projects-tab:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.arcadia-projects-tab-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.arcadia-projects-tab-active:hover {
+	background: var(--interactive-accent-hover);
+	color: var(--text-on-accent);
+}
+
+.arcadia-projects-tab-icon {
+	display: flex;
+	align-items: center;
+}
+
+.arcadia-projects-tab-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.arcadia-projects-refresh-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-muted);
+}
+
+.arcadia-projects-refresh-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.arcadia-projects-refresh-btn svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* ---- Content Area ---- */
+.arcadia-projects-content {
+	flex: 1;
+	overflow: auto;
+}
+
+/* ---- Empty State ---- */
+.arcadia-projects-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 200px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-medium);
+	font-style: italic;
+}
+
+/* ============================================================
+   TABLE VIEW
+   ============================================================ */
+
+.arcadia-projects-table-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.arcadia-projects-filter-bar {
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.arcadia-projects-filter-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+}
+
+.arcadia-projects-filter-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.arcadia-projects-table-wrapper {
+	flex: 1;
+	overflow: auto;
+	padding: 0 12px 12px;
+}
+
+.arcadia-projects-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-ui-small);
+}
+
+.arcadia-projects-th {
+	position: sticky;
+	top: 0;
+	background: var(--background-secondary);
+	text-align: left;
+	padding: 8px 10px;
+	border-bottom: 2px solid var(--background-modifier-border);
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.arcadia-projects-th:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.arcadia-projects-th-content {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.arcadia-projects-sort-icon {
+	font-size: 10px;
+	color: var(--interactive-accent);
+}
+
+.arcadia-projects-row {
+	border-bottom: 1px solid var(--background-modifier-border);
+	transition: background 0.1s;
+}
+
+.arcadia-projects-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.arcadia-projects-td {
+	padding: 6px 10px;
+	vertical-align: top;
+	color: var(--text-normal);
+	max-width: 300px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.arcadia-projects-note-link {
+	color: var(--text-accent);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.arcadia-projects-note-link:hover {
+	text-decoration: underline;
+	color: var(--text-accent-hover);
+}
+
+/* ============================================================
+   KANBAN VIEW
+   ============================================================ */
+
+.arcadia-projects-kanban-container {
+	height: 100%;
+	overflow: hidden;
+}
+
+.arcadia-projects-kanban-board {
+	display: flex;
+	gap: 12px;
+	padding: 12px;
+	height: 100%;
+	overflow-x: auto;
+	overflow-y: hidden;
+	align-items: flex-start;
+}
+
+.arcadia-projects-kanban-column {
+	display: flex;
+	flex-direction: column;
+	min-width: 250px;
+	max-width: 300px;
+	max-height: 100%;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 2px solid transparent;
+	transition: border-color 0.15s;
+	flex-shrink: 0;
+}
+
+.arcadia-projects-kanban-column-dragover {
+	border-color: var(--interactive-accent);
+	background: var(--background-secondary-alt);
+}
+
+.arcadia-projects-kanban-column-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.arcadia-projects-kanban-column-title {
+	font-weight: 600;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+.arcadia-projects-kanban-column-count {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: 11px;
+	padding: 1px 6px;
+	border-radius: 10px;
+	font-weight: 600;
+}
+
+.arcadia-projects-kanban-cards {
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.arcadia-projects-kanban-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 8px 10px;
+	cursor: grab;
+	transition: box-shadow 0.15s, opacity 0.15s;
+}
+
+.arcadia-projects-kanban-card:hover {
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.arcadia-projects-kanban-card-dragging {
+	opacity: 0.4;
+	cursor: grabbing;
+}
+
+.arcadia-projects-kanban-card-title {
+	margin-bottom: 4px;
+}
+
+.arcadia-projects-kanban-card-title .arcadia-projects-note-link {
+	font-weight: 500;
+	font-size: var(--font-ui-small);
+}
+
+.arcadia-projects-kanban-card-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.arcadia-projects-kanban-card-field {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.arcadia-projects-kanban-card-field-label {
+	color: var(--text-faint);
+}
+
+.arcadia-projects-kanban-card-field-value {
+	color: var(--text-muted);
+}
+
+.arcadia-projects-kanban-add-card {
+	padding: 8px 12px;
+	text-align: center;
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	border-top: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+	transition: background 0.15s, color 0.15s;
+}
+
+.arcadia-projects-kanban-add-card:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}

@@ -1,0 +1,10 @@
+{
+	"id": "arcadia-projects",
+	"name": "Arcadia Projects",
+	"version": "1.0.0",
+	"minAppVersion": "0.16.0",
+	"description": "Multi-view project management: Table and Kanban views of your vault notes. Part of the Arcadia Suite.",
+	"author": "Peter J. Carter",
+	"authorUrl": "https://theologyinfocus.org",
+	"isDesktopOnly": false
+}
