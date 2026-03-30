@@ -1,5 +1,7 @@
 # Arcadia Projects
 
+![Arcadia Projects](docs/screenshot.png)
+
 Multi-view project management for Obsidian: visualize your vault notes as a Table or Kanban board, with real-time sync to your note metadata.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
