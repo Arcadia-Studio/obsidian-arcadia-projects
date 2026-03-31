@@ -15,7 +15,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Arcadia Projects Settings" });
+		new Setting(containerEl).setName('Arcadia Projects settings').setHeading();
 
 		new Setting(containerEl)
 			.setName("Project folder")
@@ -102,7 +102,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h3", { text: "License" });
+		new Setting(containerEl).setName('License').setHeading();
 
 		const licenseStatus = this.plugin.settings.licenseStatus;
 		const isPro = this.plugin.settings.isPro && licenseStatus?.valid;

@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => ArcadiaProjectsPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/types.ts
 var VIEW_TYPE_ARCADIA_PROJECTS = "arcadia-projects-view";
@@ -40,12 +40,46 @@ var DEFAULT_SETTINGS = {
   defaultView: "table",
   cardFields: ["status", "due", "tags"],
   licenseKey: "",
+  licenseStatus: null,
   isPro: false
 };
 
 // src/settings.ts
+var import_obsidian2 = require("obsidian");
+
+// src/license.ts
 var import_obsidian = require("obsidian");
-var ArcadiaProjectsSettingTab = class extends import_obsidian.PluginSettingTab {
+var LICENSE_CACHE_DURATION = 24 * 60 * 60 * 1e3;
+async function validateLicense(licenseKey, instanceName = "obsidian") {
+  var _a, _b, _c;
+  try {
+    const response = await (0, import_obsidian.requestUrl)({
+      url: "https://api.lemonsqueezy.com/v1/licenses/validate",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ license_key: licenseKey, instance_name: instanceName })
+    });
+    const data = response.json;
+    if (data.valid) {
+      return {
+        valid: true,
+        instanceId: (_a = data.instance) == null ? void 0 : _a.id,
+        customerEmail: (_b = data.meta) == null ? void 0 : _b.customer_email,
+        expiresAt: (_c = data.license_key) == null ? void 0 : _c.expires_at,
+        lastChecked: Date.now()
+      };
+    }
+    return { valid: false, lastChecked: Date.now() };
+  } catch (e) {
+    return { valid: false, lastChecked: Date.now() };
+  }
+}
+
+// src/settings.ts
+var ArcadiaProjectsSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -53,56 +87,87 @@ var ArcadiaProjectsSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Arcadia Projects Settings" });
-    new import_obsidian.Setting(containerEl).setName("Project folder").setDesc("Path to the folder containing your project notes (e.g. Projects/)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Arcadia Projects settings").setHeading();
+    new import_obsidian2.Setting(containerEl).setName("Project folder").setDesc("Path to the folder containing your project notes (e.g. Projects/)").addText(
       (text) => text.setPlaceholder("Projects/").setValue(this.plugin.settings.projectFolder).onChange(async (value) => {
         this.plugin.settings.projectFolder = value.trim();
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Status property").setDesc("Frontmatter property used for status (used as Kanban columns)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Status property").setDesc("Frontmatter property used for status (used as Kanban columns)").addText(
       (text) => text.setPlaceholder("status").setValue(this.plugin.settings.statusProperty).onChange(async (value) => {
         this.plugin.settings.statusProperty = value.trim();
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Status values").setDesc("Comma-separated list of status values (defines Kanban column order)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Status values").setDesc("Comma-separated list of status values (defines Kanban column order)").addText(
       (text) => text.setPlaceholder("todo, in-progress, done").setValue(this.plugin.settings.statusValues.join(", ")).onChange(async (value) => {
         this.plugin.settings.statusValues = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Date property").setDesc("Frontmatter property used for due dates").addText(
+    new import_obsidian2.Setting(containerEl).setName("Date property").setDesc("Frontmatter property used for due dates").addText(
       (text) => text.setPlaceholder("due").setValue(this.plugin.settings.dateProperty).onChange(async (value) => {
         this.plugin.settings.dateProperty = value.trim();
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Default view").setDesc("Which view to show when opening the project panel").addDropdown(
+    new import_obsidian2.Setting(containerEl).setName("Default view").setDesc("Which view to show when opening the project panel").addDropdown(
       (dropdown) => dropdown.addOption("table", "Table").addOption("kanban", "Kanban").setValue(this.plugin.settings.defaultView).onChange(async (value) => {
         this.plugin.settings.defaultView = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Card display fields").setDesc("Comma-separated list of frontmatter properties to show on Kanban cards").addText(
+    new import_obsidian2.Setting(containerEl).setName("Card display fields").setDesc("Comma-separated list of frontmatter properties to show on Kanban cards").addText(
       (text) => text.setPlaceholder("status, due, tags").setValue(this.plugin.settings.cardFields.join(", ")).onChange(async (value) => {
         this.plugin.settings.cardFields = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
         await this.plugin.saveSettings();
       })
     );
-    containerEl.createEl("h3", { text: "License" });
-    new import_obsidian.Setting(containerEl).setName("License key").setDesc("Enter your Arcadia Pro license key (optional)").addText(
-      (text) => text.setPlaceholder("Enter license key").setValue(this.plugin.settings.licenseKey).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("License").setHeading();
+    const licenseStatus = this.plugin.settings.licenseStatus;
+    const isPro = this.plugin.settings.isPro && (licenseStatus == null ? void 0 : licenseStatus.valid);
+    const statusDesc = isPro ? `Active${(licenseStatus == null ? void 0 : licenseStatus.customerEmail) ? ` (${licenseStatus.customerEmail})` : ""}${(licenseStatus == null ? void 0 : licenseStatus.expiresAt) ? ` - expires ${licenseStatus.expiresAt}` : ""}` : "No active license. Enter your license key and click Validate.";
+    const licenseStatusEl = containerEl.createEl("p", {
+      text: `License status: ${statusDesc}`,
+      cls: isPro ? "mod-success" : "mod-warning"
+    });
+    new import_obsidian2.Setting(containerEl).setName("License key").setDesc("Enter your Arcadia Projects Premium license key from Lemon Squeezy.").addText(
+      (text) => text.setPlaceholder("XXXX-XXXX-XXXX-XXXX").setValue(this.plugin.settings.licenseKey).onChange(async (value) => {
         this.plugin.settings.licenseKey = value.trim();
         await this.plugin.saveSettings();
+      })
+    ).addButton(
+      (btn) => btn.setButtonText("Validate").setCta().onClick(async () => {
+        const key = this.plugin.settings.licenseKey.trim();
+        if (!key)
+          return;
+        btn.setButtonText("Checking...").setDisabled(true);
+        const status = await validateLicense(key);
+        this.plugin.settings.licenseStatus = status;
+        this.plugin.settings.isPro = status.valid;
+        await this.plugin.saveSettings();
+        btn.setButtonText("Validate").setDisabled(false);
+        if (status.valid) {
+          licenseStatusEl.textContent = `License status: Active${status.customerEmail ? ` (${status.customerEmail})` : ""}`;
+          licenseStatusEl.className = "mod-success";
+        } else {
+          licenseStatusEl.textContent = "License status: Invalid or expired. Check your key and try again.";
+          licenseStatusEl.className = "mod-warning";
+        }
+      })
+    );
+    new import_obsidian2.Setting(containerEl).addButton(
+      (btn) => btn.setButtonText("Get Arcadia Projects Premium").onClick(() => {
+        window.open("https://arcadia-studio.lemonsqueezy.com", "_blank");
       })
     );
   }
 };
 
 // src/data.ts
-var import_obsidian2 = require("obsidian");
-var ProjectDataManager = class extends import_obsidian2.Events {
+var import_obsidian3 = require("obsidian");
+var ProjectDataManager = class extends import_obsidian3.Events {
   constructor(app, settings) {
     super();
     this.notes = [];
@@ -120,12 +185,12 @@ var ProjectDataManager = class extends import_obsidian2.Events {
       }
     });
     this.vaultRef = this.app.vault.on("create", (file) => {
-      if (file instanceof import_obsidian2.TFile && this.isProjectFile(file)) {
+      if (file instanceof import_obsidian3.TFile && this.isProjectFile(file)) {
         this.refresh();
       }
     });
     this.vaultDeleteRef = this.app.vault.on("delete", (file) => {
-      if (file instanceof import_obsidian2.TFile && this.isProjectFile(file)) {
+      if (file instanceof import_obsidian3.TFile && this.isProjectFile(file)) {
         this.refresh();
       }
     });
@@ -175,7 +240,7 @@ var ProjectDataManager = class extends import_obsidian2.Events {
     const folder = this.app.vault.getAbstractFileByPath(
       normalizedPath.endsWith("/") ? normalizedPath.slice(0, -1) : normalizedPath
     );
-    if (!folder || !(folder instanceof import_obsidian2.TFolder))
+    if (!folder || !(folder instanceof import_obsidian3.TFolder))
       return [];
     const notes = [];
     this.collectMarkdownFiles(folder, notes);
@@ -184,10 +249,10 @@ var ProjectDataManager = class extends import_obsidian2.Events {
   /** Recursively collect .md files from a folder */
   collectMarkdownFiles(folder, notes) {
     for (const child of folder.children) {
-      if (child instanceof import_obsidian2.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian3.TFile && child.extension === "md") {
         const note = this.buildProjectNote(child);
         notes.push(note);
-      } else if (child instanceof import_obsidian2.TFolder) {
+      } else if (child instanceof import_obsidian3.TFolder) {
         this.collectMarkdownFiles(child, notes);
       }
     }
@@ -302,7 +367,7 @@ var ProjectDataManager = class extends import_obsidian2.Events {
 };
 
 // src/project-view.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/table-view.ts
 var TableView = class {
@@ -418,7 +483,7 @@ var TableView = class {
 };
 
 // src/kanban-view.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 var KanbanView = class {
   constructor(app, containerEl, dataManager, settings) {
     this.draggedNote = null;
@@ -564,7 +629,7 @@ var KanbanView = class {
     this.containerEl.empty();
   }
 };
-var CreateNoteModal = class extends import_obsidian3.Modal {
+var CreateNoteModal = class extends import_obsidian4.Modal {
   constructor(app, dataManager, settings, statusVal) {
     super(app);
     this.noteTitle = "";
@@ -575,7 +640,7 @@ var CreateNoteModal = class extends import_obsidian3.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "Create New Note" });
-    new import_obsidian3.Setting(contentEl).setName("Title").addText((text) => {
+    new import_obsidian4.Setting(contentEl).setName("Title").addText((text) => {
       text.setPlaceholder("Note title").onChange((value) => {
         this.noteTitle = value.trim();
       });
@@ -586,13 +651,13 @@ var CreateNoteModal = class extends import_obsidian3.Modal {
         }
       });
     });
-    new import_obsidian3.Setting(contentEl).addButton((btn) => {
+    new import_obsidian4.Setting(contentEl).addButton((btn) => {
       btn.setButtonText("Create").setCta().onClick(() => this.createNote());
     });
   }
   async createNote() {
     if (!this.noteTitle) {
-      new import_obsidian3.Notice("Please enter a note title.");
+      new import_obsidian4.Notice("Please enter a note title.");
       return;
     }
     try {
@@ -600,10 +665,10 @@ var CreateNoteModal = class extends import_obsidian3.Modal {
         [this.settings.statusProperty]: this.statusVal
       };
       await this.dataManager.createNote(this.noteTitle, properties);
-      new import_obsidian3.Notice(`Created "${this.noteTitle}"`);
+      new import_obsidian4.Notice(`Created "${this.noteTitle}"`);
       this.close();
     } catch (err) {
-      new import_obsidian3.Notice(`Failed to create note: ${err}`);
+      new import_obsidian4.Notice(`Failed to create note: ${err}`);
     }
   }
   onClose() {
@@ -612,7 +677,7 @@ var CreateNoteModal = class extends import_obsidian3.Modal {
 };
 
 // src/project-view.ts
-var ProjectView = class extends import_obsidian4.ItemView {
+var ProjectView = class extends import_obsidian5.ItemView {
   constructor(leaf, settings, dataManager) {
     super(leaf);
     this.tableView = null;
@@ -639,15 +704,15 @@ var ProjectView = class extends import_obsidian4.ItemView {
     const toolbar = container.createDiv({ cls: "arcadia-projects-toolbar" });
     const tabs = toolbar.createDiv({ cls: "arcadia-projects-tabs" });
     const tableTab = tabs.createDiv({ cls: "arcadia-projects-tab" });
-    (0, import_obsidian4.setIcon)(tableTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "table");
+    (0, import_obsidian5.setIcon)(tableTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "table");
     tableTab.createSpan({ text: "Table" });
     tableTab.addEventListener("click", () => this.switchView("table"));
     const kanbanTab = tabs.createDiv({ cls: "arcadia-projects-tab" });
-    (0, import_obsidian4.setIcon)(kanbanTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "columns");
+    (0, import_obsidian5.setIcon)(kanbanTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "columns");
     kanbanTab.createSpan({ text: "Kanban" });
     kanbanTab.addEventListener("click", () => this.switchView("kanban"));
     const refreshBtn = toolbar.createDiv({ cls: "arcadia-projects-refresh-btn" });
-    (0, import_obsidian4.setIcon)(refreshBtn, "refresh-cw");
+    (0, import_obsidian5.setIcon)(refreshBtn, "refresh-cw");
     refreshBtn.setAttribute("aria-label", "Refresh");
     refreshBtn.addEventListener("click", () => {
       this.dataManager.refresh();
@@ -716,7 +781,7 @@ var ProjectView = class extends import_obsidian4.ItemView {
 };
 
 // src/main.ts
-var ArcadiaProjectsPlugin = class extends import_obsidian5.Plugin {
+var ArcadiaProjectsPlugin = class extends import_obsidian6.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -729,22 +794,28 @@ var ArcadiaProjectsPlugin = class extends import_obsidian5.Plugin {
       return new ProjectView(leaf, this.settings, this.dataManager);
     });
     this.addRibbonIcon("layout-dashboard", "Open Arcadia Projects", () => {
-      this.activateView();
+      void this.activateView();
     });
     this.addCommand({
       id: "open-project-view",
       name: "Open Project View",
-      callback: () => this.activateView()
+      callback: () => {
+        void this.activateView();
+      }
     });
     this.addCommand({
       id: "switch-to-table",
       name: "Switch to Table View",
-      callback: () => this.switchView("table")
+      callback: () => {
+        this.switchView("table");
+      }
     });
     this.addCommand({
       id: "switch-to-kanban",
       name: "Switch to Kanban View",
-      callback: () => this.switchView("kanban")
+      callback: () => {
+        this.switchView("kanban");
+      }
     });
     this.addSettingTab(new ArcadiaProjectsSettingTab(this.app, this));
     this.app.workspace.onLayoutReady(() => {
@@ -755,7 +826,6 @@ var ArcadiaProjectsPlugin = class extends import_obsidian5.Plugin {
   onunload() {
     var _a;
     (_a = this.dataManager) == null ? void 0 : _a.stopListening();
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -792,7 +862,7 @@ var ArcadiaProjectsPlugin = class extends import_obsidian5.Plugin {
       leaves[0].view.switchView(mode);
       this.app.workspace.revealLeaf(leaves[0]);
     } else {
-      this.activateView().then(() => {
+      void this.activateView().then(() => {
         const newLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
         if (newLeaves.length > 0 && newLeaves[0].view instanceof ProjectView) {
           newLeaves[0].view.switchView(mode);

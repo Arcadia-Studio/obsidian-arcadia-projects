@@ -20,26 +20,26 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 
 		// Ribbon icon
 		this.addRibbonIcon("layout-dashboard", "Open Arcadia Projects", () => {
-			this.activateView();
+			void this.activateView();
 		});
 
 		// Commands
 		this.addCommand({
 			id: "open-project-view",
 			name: "Open Project View",
-			callback: () => this.activateView(),
+			callback: () => { void this.activateView(); },
 		});
 
 		this.addCommand({
 			id: "switch-to-table",
 			name: "Switch to Table View",
-			callback: () => this.switchView("table"),
+			callback: () => { this.switchView("table"); },
 		});
 
 		this.addCommand({
 			id: "switch-to-kanban",
 			name: "Switch to Kanban View",
-			callback: () => this.switchView("kanban"),
+			callback: () => { this.switchView("kanban"); },
 		});
 
 		// Settings tab
@@ -53,7 +53,6 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 
 	onunload(): void {
 		this.dataManager?.stopListening();
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
 	}
 
 	async loadSettings(): Promise<void> {
@@ -97,7 +96,7 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 			this.app.workspace.revealLeaf(leaves[0]);
 		} else {
 			// Open the view first, then switch
-			this.activateView().then(() => {
+			void this.activateView().then(() => {
 				const newLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
 				if (newLeaves.length > 0 && newLeaves[0].view instanceof ProjectView) {
 					newLeaves[0].view.switchView(mode);
