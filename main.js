@@ -548,17 +548,19 @@ var KanbanView = class {
         column.removeClass("arcadia-projects-kanban-column-dragover");
       }
     });
-    column.addEventListener("drop", async (e) => {
-      e.preventDefault();
-      column.removeClass("arcadia-projects-kanban-column-dragover");
-      if (this.draggedNote && statusVal !== "__uncategorized__") {
-        await this.dataManager.updateNoteProperty(
-          this.draggedNote.file,
-          this.settings.statusProperty,
-          statusVal
-        );
-        this.draggedNote = null;
-      }
+    column.addEventListener("drop", (e) => {
+      void (async () => {
+        e.preventDefault();
+        column.removeClass("arcadia-projects-kanban-column-dragover");
+        if (this.draggedNote && statusVal !== "__uncategorized__") {
+          await this.dataManager.updateNoteProperty(
+            this.draggedNote.file,
+            this.settings.statusProperty,
+            statusVal
+          );
+          this.draggedNote = null;
+        }
+      })();
     });
     if (statusVal !== "__uncategorized__") {
       const addBtn = column.createDiv({ cls: "arcadia-projects-kanban-add-card" });
@@ -578,7 +580,7 @@ var KanbanView = class {
     });
     link.addEventListener("click", (e) => {
       e.preventDefault();
-      this.app.workspace.openLinkText(note.file.path, "", false);
+      void this.app.workspace.openLinkText(note.file.path, "", false);
     });
     const fieldsContainer = card.createDiv({ cls: "arcadia-projects-kanban-card-fields" });
     for (const field of this.settings.cardFields) {
@@ -639,7 +641,7 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
   }
   onOpen() {
     const { contentEl } = this;
-    contentEl.createEl("h3", { text: "Create New Note" });
+    contentEl.createEl("h3", { text: "Create new note" });
     new import_obsidian4.Setting(contentEl).setName("Title").addText((text) => {
       text.setPlaceholder("Note title").onChange((value) => {
         this.noteTitle = value.trim();
@@ -647,12 +649,14 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
       setTimeout(() => text.inputEl.focus(), 50);
       text.inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          this.createNote();
+          void this.createNote();
         }
       });
     });
     new import_obsidian4.Setting(contentEl).addButton((btn) => {
-      btn.setButtonText("Create").setCta().onClick(() => this.createNote());
+      btn.setButtonText("Create").setCta().onClick(() => {
+        void this.createNote();
+      });
     });
   }
   async createNote() {
