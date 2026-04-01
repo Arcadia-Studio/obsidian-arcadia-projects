@@ -87,38 +87,37 @@ var ArcadiaProjectsSettingTab = class extends import_obsidian2.PluginSettingTab 
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian2.Setting(containerEl).setName("General").setHeading();
-    new import_obsidian2.Setting(containerEl).setName("Project folder").setDesc("Path to the folder containing your project notes (e.g. Projects/)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Project folder").setDesc("Path to the folder containing your project notes (e.g. Projects/).").addText(
       (text) => text.setPlaceholder("Projects/").setValue(this.plugin.settings.projectFolder).onChange((value) => {
         this.plugin.settings.projectFolder = value.trim();
         void this.plugin.saveSettings();
       })
     );
-    new import_obsidian2.Setting(containerEl).setName("Status property").setDesc("Frontmatter property used for status (used as kanban columns)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Status property").setDesc("Frontmatter property used for status (used as kanban columns).").addText(
       (text) => text.setPlaceholder("status").setValue(this.plugin.settings.statusProperty).onChange((value) => {
         this.plugin.settings.statusProperty = value.trim();
         void this.plugin.saveSettings();
       })
     );
-    new import_obsidian2.Setting(containerEl).setName("Status values").setDesc("Comma-separated list of status values (defines kanban column order)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Status values").setDesc("Comma-separated list of status values (defines kanban column order).").addText(
       (text) => text.setPlaceholder("todo, in-progress, done").setValue(this.plugin.settings.statusValues.join(", ")).onChange((value) => {
         this.plugin.settings.statusValues = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
         void this.plugin.saveSettings();
       })
     );
-    new import_obsidian2.Setting(containerEl).setName("Date property").setDesc("Frontmatter property used for due dates").addText(
+    new import_obsidian2.Setting(containerEl).setName("Date property").setDesc("Frontmatter property used for due dates.").addText(
       (text) => text.setPlaceholder("due").setValue(this.plugin.settings.dateProperty).onChange((value) => {
         this.plugin.settings.dateProperty = value.trim();
         void this.plugin.saveSettings();
       })
     );
-    new import_obsidian2.Setting(containerEl).setName("Default view").setDesc("Which view to show when opening the project panel").addDropdown(
+    new import_obsidian2.Setting(containerEl).setName("Default view").setDesc("Which view to show when opening the project panel.").addDropdown(
       (dropdown) => dropdown.addOption("table", "Table").addOption("kanban", "Kanban").setValue(this.plugin.settings.defaultView).onChange((value) => {
         this.plugin.settings.defaultView = value;
         void this.plugin.saveSettings();
       })
     );
-    new import_obsidian2.Setting(containerEl).setName("Card display fields").setDesc("Comma-separated list of frontmatter properties to show on kanban cards").addText(
+    new import_obsidian2.Setting(containerEl).setName("Card display fields").setDesc("Comma-separated list of frontmatter properties to show on kanban cards.").addText(
       (text) => text.setPlaceholder("status, due, tags").setValue(this.plugin.settings.cardFields.join(", ")).onChange((value) => {
         this.plugin.settings.cardFields = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
         void this.plugin.saveSettings();
@@ -681,8 +680,7 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
       new import_obsidian4.Notice(`Failed to create note: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  async onClose() {
-    await Promise.resolve();
+  onClose() {
     this.contentEl.empty();
   }
 };
@@ -806,7 +804,7 @@ var ArcadiaProjectsPlugin = class extends import_obsidian6.Plugin {
     this.registerView(VIEW_TYPE_ARCADIA_PROJECTS, (leaf) => {
       return new ProjectView(leaf, this.settings, this.dataManager);
     });
-    this.addRibbonIcon("layout-dashboard", "Open Arcadia projects", () => {
+    this.addRibbonIcon("layout-dashboard", "Open Arcadia Projects", () => {
       void this.activateView();
     });
     this.addCommand({
@@ -857,7 +855,7 @@ var ArcadiaProjectsPlugin = class extends import_obsidian6.Plugin {
   async activateView() {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      void this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf = this.app.workspace.getRightLeaf(false);
@@ -866,14 +864,14 @@ var ArcadiaProjectsPlugin = class extends import_obsidian6.Plugin {
         type: VIEW_TYPE_ARCADIA_PROJECTS,
         active: true
       });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
     }
   }
   switchView(mode) {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
     if (leaves.length > 0 && leaves[0].view instanceof ProjectView) {
       leaves[0].view.switchView(mode);
-      this.app.workspace.revealLeaf(leaves[0]);
+      void this.app.workspace.revealLeaf(leaves[0]);
     } else {
       void this.activateView().then(() => {
         const newLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);

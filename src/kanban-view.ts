@@ -264,8 +264,7 @@ class CreateNoteModal extends Modal {
 		}
 	}
 
-	async onClose(): Promise<void> {
-		await Promise.resolve();
+	onClose(): void {
 		this.contentEl.empty();
 	}
 }

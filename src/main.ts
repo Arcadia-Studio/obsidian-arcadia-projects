@@ -19,7 +19,7 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 		});
 
 		// Ribbon icon
-		this.addRibbonIcon("layout-dashboard", "Open Arcadia projects", () => {
+		this.addRibbonIcon("layout-dashboard", "Open Arcadia Projects", () => {
 			void this.activateView();
 		});
 
@@ -75,7 +75,7 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 	async activateView(): Promise<void> {
 		const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
 		if (existing.length > 0) {
-			this.app.workspace.revealLeaf(existing[0]);
+			void this.app.workspace.revealLeaf(existing[0]);
 			return;
 		}
 
@@ -85,7 +85,7 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 				type: VIEW_TYPE_ARCADIA_PROJECTS,
 				active: true,
 			});
-			this.app.workspace.revealLeaf(leaf);
+			void this.app.workspace.revealLeaf(leaf);
 		}
 	}
 
@@ -93,7 +93,7 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ARCADIA_PROJECTS);
 		if (leaves.length > 0 && leaves[0].view instanceof ProjectView) {
 			leaves[0].view.switchView(mode);
-			this.app.workspace.revealLeaf(leaves[0]);
+			void this.app.workspace.revealLeaf(leaves[0]);
 		} else {
 			// Open the view first, then switch
 			void this.activateView().then(() => {

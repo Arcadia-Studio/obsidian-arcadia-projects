@@ -14,11 +14,9 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName('General').setHeading();
-
 		new Setting(containerEl)
 			.setName("Project folder")
-			.setDesc("Path to the folder containing your project notes (e.g. Projects/)")
+			.setDesc("Path to the folder containing your project notes (e.g. Projects/).")
 			.addText((text) =>
 				text
 					.setPlaceholder("Projects/")
@@ -31,7 +29,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Status property")
-			.setDesc("Frontmatter property used for status (used as kanban columns)")
+			.setDesc("Frontmatter property used for status (used as kanban columns).")
 			.addText((text) =>
 				text
 					.setPlaceholder("status")
@@ -44,7 +42,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Status values")
-			.setDesc("Comma-separated list of status values (defines kanban column order)")
+			.setDesc("Comma-separated list of status values (defines kanban column order).")
 			.addText((text) =>
 				text
 					.setPlaceholder("todo, in-progress, done")
@@ -60,7 +58,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Date property")
-			.setDesc("Frontmatter property used for due dates")
+			.setDesc("Frontmatter property used for due dates.")
 			.addText((text) =>
 				text
 					.setPlaceholder("due")
@@ -73,7 +71,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Default view")
-			.setDesc("Which view to show when opening the project panel")
+			.setDesc("Which view to show when opening the project panel.")
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption("table", "Table")
@@ -87,7 +85,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Card display fields")
-			.setDesc("Comma-separated list of frontmatter properties to show on kanban cards")
+			.setDesc("Comma-separated list of frontmatter properties to show on kanban cards.")
 			.addText((text) =>
 				text
 					.setPlaceholder("status, due, tags")

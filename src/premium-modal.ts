@@ -34,7 +34,7 @@ export class PremiumModal extends Modal {
 
 		new Setting(contentEl)
 			.setName('License key')
-			.setDesc('Enter your license key from Lemon Squeezy')
+			.setDesc('Enter your license key from Lemon Squeezy.')
 			.addText(text => {
 				this.textInputEl = text.inputEl;
 				text
