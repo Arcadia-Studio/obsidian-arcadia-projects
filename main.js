@@ -644,7 +644,8 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
     this.settings = settings;
     this.statusVal = statusVal;
   }
-  onOpen() {
+  async onOpen() {
+    await Promise.resolve();
     const { contentEl } = this;
     new import_obsidian4.Setting(contentEl).setName("Create new note").setHeading();
     new import_obsidian4.Setting(contentEl).setName("Title").addText((text) => {
@@ -680,7 +681,8 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
       new import_obsidian4.Notice(`Failed to create note: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  onClose() {
+  async onClose() {
+    await Promise.resolve();
     this.contentEl.empty();
   }
 };
@@ -706,7 +708,8 @@ var ProjectView = class extends import_obsidian5.ItemView {
   getIcon() {
     return "layout-dashboard";
   }
-  onOpen() {
+  async onOpen() {
+    await Promise.resolve();
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("arcadia-projects-root");
@@ -731,7 +734,8 @@ var ProjectView = class extends import_obsidian5.ItemView {
     this.dataManager.refresh();
     this.updateTabStates();
   }
-  onClose() {
+  async onClose() {
+    await Promise.resolve();
     this.dataManager.off("data-changed", this.dataChangedHandler);
     this.destroyViews();
   }

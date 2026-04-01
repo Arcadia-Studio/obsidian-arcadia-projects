@@ -37,7 +37,8 @@ export class ProjectView extends ItemView {
 		return "layout-dashboard";
 	}
 
-	onOpen(): void {
+	async onOpen(): Promise<void> {
+		await Promise.resolve();
 		const container = this.containerEl.children[1] as HTMLElement;
 		container.empty();
 		container.addClass("arcadia-projects-root");
@@ -79,7 +80,8 @@ export class ProjectView extends ItemView {
 		this.updateTabStates();
 	}
 
-	onClose(): void {
+	async onClose(): Promise<void> {
+		await Promise.resolve();
 		this.dataManager.off("data-changed", this.dataChangedHandler);
 		this.destroyViews();
 	}

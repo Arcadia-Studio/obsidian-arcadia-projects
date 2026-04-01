@@ -219,7 +219,8 @@ class CreateNoteModal extends Modal {
 		this.statusVal = statusVal;
 	}
 
-	onOpen(): void {
+	async onOpen(): Promise<void> {
+		await Promise.resolve();
 		const { contentEl } = this;
 		new Setting(contentEl).setName("Create new note").setHeading();
 
@@ -263,7 +264,8 @@ class CreateNoteModal extends Modal {
 		}
 	}
 
-	onClose(): void {
+	async onClose(): Promise<void> {
+		await Promise.resolve();
 		this.contentEl.empty();
 	}
 }

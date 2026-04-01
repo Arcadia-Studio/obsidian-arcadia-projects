@@ -1,7 +1,7 @@
 {
 	"id": "arcadia-projects",
 	"name": "Arcadia Projects",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"minAppVersion": "0.16.0",
 	"description": "Multi-view project management: Table and Kanban views over your vault notes with filtering and sorting.",
 	"author": "Peter J. Carter",
