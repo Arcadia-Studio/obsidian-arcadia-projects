@@ -187,7 +187,7 @@ export class KanbanView {
 		if (val == null) return "";
 		if (Array.isArray(val)) return val.join(", ");
 		if (typeof val === "object") return JSON.stringify(val);
-		return String(val);
+		return String(val as string | number | boolean);
 	}
 
 	private showCreateNoteModal(statusVal: string): void {

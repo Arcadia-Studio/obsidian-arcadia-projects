@@ -19,7 +19,7 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 		});
 
 		// Ribbon icon
-		this.addRibbonIcon("layout-dashboard", "Open Arcadia Projects", () => {
+		this.addRibbonIcon("layout-dashboard", "Open arcadia projects", () => {
 			void this.activateView();
 		});
 

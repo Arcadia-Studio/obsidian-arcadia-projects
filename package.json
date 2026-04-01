@@ -1,6 +1,6 @@
 {
 	"name": "arcadia-projects",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"description": "Multi-view project management: Table and Kanban views of your vault notes.",
 	"main": "main.js",
 	"scripts": {

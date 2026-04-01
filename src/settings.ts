@@ -32,7 +32,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 			.setDesc("Frontmatter property used for status (used as kanban columns).")
 			.addText((text) =>
 				text
-					.setPlaceholder("status")
+					.setPlaceholder("Status")
 					.setValue(this.plugin.settings.statusProperty)
 					.onChange((value) => {
 						this.plugin.settings.statusProperty = value.trim();
@@ -45,7 +45,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 			.setDesc("Comma-separated list of status values (defines kanban column order).")
 			.addText((text) =>
 				text
-					.setPlaceholder("todo, in-progress, done")
+					.setPlaceholder("Todo, in-progress, done")
 					.setValue(this.plugin.settings.statusValues.join(", "))
 					.onChange((value) => {
 						this.plugin.settings.statusValues = value
@@ -61,7 +61,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 			.setDesc("Frontmatter property used for due dates.")
 			.addText((text) =>
 				text
-					.setPlaceholder("due")
+					.setPlaceholder("Due")
 					.setValue(this.plugin.settings.dateProperty)
 					.onChange((value) => {
 						this.plugin.settings.dateProperty = value.trim();
@@ -88,7 +88,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 			.setDesc("Comma-separated list of frontmatter properties to show on kanban cards.")
 			.addText((text) =>
 				text
-					.setPlaceholder("status, due, tags")
+					.setPlaceholder("Status, due, tags")
 					.setValue(this.plugin.settings.cardFields.join(", "))
 					.onChange((value) => {
 						this.plugin.settings.cardFields = value
@@ -114,10 +114,10 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("License key")
-			.setDesc("Enter your license key from Lemon Squeezy.")
+			.setDesc("Enter your license key.")
 			.addText((text) =>
 				text
-					.setPlaceholder("XXXX-XXXX-XXXX-XXXX")
+					.setPlaceholder("Xxxx-xxxx-xxxx-xxxx")
 					.setValue(this.plugin.settings.licenseKey)
 					.onChange((value) => {
 						this.plugin.settings.licenseKey = value.trim();
@@ -141,7 +141,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 									licenseStatusEl.textContent = `License status: Active${status.customerEmail ? ` (${status.customerEmail})` : ""}`;
 									licenseStatusEl.className = "mod-success";
 								} else {
-									licenseStatusEl.textContent = "License status: Invalid or expired. Check your key and try again.";
+									licenseStatusEl.textContent = "License status: invalid or expired. Check your key and try again.";
 									licenseStatusEl.className = "mod-warning";
 								}
 							});

@@ -176,9 +176,14 @@ export class ProjectDataManager extends Events {
 
 		for (const note of this.notes) {
 			const rawVal = note.properties[property];
-			const val = rawVal != null
-				? (typeof rawVal === "object" ? JSON.stringify(rawVal) : String(rawVal)).trim()
-				: "";
+			let val = "";
+			if (rawVal != null) {
+				if (typeof rawVal === "object") {
+					val = JSON.stringify(rawVal).trim();
+				} else {
+					val = String(rawVal).trim();
+				}
+			}
 
 			if (val && groups.has(val)) {
 				groups.get(val)!.push(note);

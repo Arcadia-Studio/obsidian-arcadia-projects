@@ -111,7 +111,7 @@ export class TableView {
 
 					// Add status class for styling
 					if (col === this.settings.statusProperty && val != null) {
-						const statusStr = typeof val === "object" ? JSON.stringify(val) : String(val);
+						const statusStr = typeof val === "object" ? JSON.stringify(val) : String(val as string | number | boolean);
 						td.addClass(`arcadia-projects-status-${statusStr.toLowerCase().replace(/\s+/g, "-")}`);
 					}
 				}
@@ -144,7 +144,7 @@ export class TableView {
 		if (val == null) return "";
 		if (Array.isArray(val)) return val.join(", ");
 		if (typeof val === "object") return JSON.stringify(val);
-		return String(val);
+		return String(val as string | number | boolean);
 	}
 
 	destroy(): void {
