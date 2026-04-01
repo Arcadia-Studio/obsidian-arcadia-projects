@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, Events, MetadataCache, Vault } from "obsidian";
+import { App, TFile, TFolder, Events } from "obsidian";
 import { ArcadiaProjectsSettings, ProjectNote, SortState } from "./types";
 
 export class ProjectDataManager extends Events {
@@ -176,7 +176,9 @@ export class ProjectDataManager extends Events {
 
 		for (const note of this.notes) {
 			const rawVal = note.properties[property];
-			const val = rawVal != null ? String(rawVal).trim() : "";
+			const val = rawVal != null
+				? (typeof rawVal === "object" ? JSON.stringify(rawVal) : String(rawVal)).trim()
+				: "";
 
 			if (val && groups.has(val)) {
 				groups.get(val)!.push(note);

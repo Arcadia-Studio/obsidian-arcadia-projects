@@ -1,6 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type ArcadiaProjectsPlugin from "./main";
-import { ArcadiaProjectsSettings } from "./types";
 import { validateLicense } from "./license";
 
 export class ArcadiaProjectsSettingTab extends PluginSettingTab {
@@ -15,7 +14,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName('Arcadia Projects settings').setHeading();
+		new Setting(containerEl).setName('General').setHeading();
 
 		new Setting(containerEl)
 			.setName("Project folder")
@@ -24,38 +23,38 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 				text
 					.setPlaceholder("Projects/")
 					.setValue(this.plugin.settings.projectFolder)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.projectFolder = value.trim();
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 
 		new Setting(containerEl)
 			.setName("Status property")
-			.setDesc("Frontmatter property used for status (used as Kanban columns)")
+			.setDesc("Frontmatter property used for status (used as kanban columns)")
 			.addText((text) =>
 				text
 					.setPlaceholder("status")
 					.setValue(this.plugin.settings.statusProperty)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.statusProperty = value.trim();
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 
 		new Setting(containerEl)
 			.setName("Status values")
-			.setDesc("Comma-separated list of status values (defines Kanban column order)")
+			.setDesc("Comma-separated list of status values (defines kanban column order)")
 			.addText((text) =>
 				text
 					.setPlaceholder("todo, in-progress, done")
 					.setValue(this.plugin.settings.statusValues.join(", "))
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.statusValues = value
 							.split(",")
 							.map((s) => s.trim())
 							.filter((s) => s.length > 0);
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 
@@ -66,9 +65,9 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 				text
 					.setPlaceholder("due")
 					.setValue(this.plugin.settings.dateProperty)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.dateProperty = value.trim();
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 
@@ -80,25 +79,25 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 					.addOption("table", "Table")
 					.addOption("kanban", "Kanban")
 					.setValue(this.plugin.settings.defaultView)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.defaultView = value as "table" | "kanban";
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 
 		new Setting(containerEl)
 			.setName("Card display fields")
-			.setDesc("Comma-separated list of frontmatter properties to show on Kanban cards")
+			.setDesc("Comma-separated list of frontmatter properties to show on kanban cards")
 			.addText((text) =>
 				text
 					.setPlaceholder("status, due, tags")
 					.setValue(this.plugin.settings.cardFields.join(", "))
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.cardFields = value
 							.split(",")
 							.map((s) => s.trim())
 							.filter((s) => s.length > 0);
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 
@@ -117,43 +116,45 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("License key")
-			.setDesc("Enter your Arcadia Projects Premium license key from Lemon Squeezy.")
+			.setDesc("Enter your license key from Lemon Squeezy.")
 			.addText((text) =>
 				text
 					.setPlaceholder("XXXX-XXXX-XXXX-XXXX")
 					.setValue(this.plugin.settings.licenseKey)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.licenseKey = value.trim();
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			)
 			.addButton((btn) =>
 				btn
 					.setButtonText("Validate")
 					.setCta()
-					.onClick(async () => {
+					.onClick(() => {
 						const key = this.plugin.settings.licenseKey.trim();
 						if (!key) return;
 						btn.setButtonText("Checking...").setDisabled(true);
-						const status = await validateLicense(key);
-						this.plugin.settings.licenseStatus = status;
-						this.plugin.settings.isPro = status.valid;
-						await this.plugin.saveSettings();
-						btn.setButtonText("Validate").setDisabled(false);
-						if (status.valid) {
-							licenseStatusEl.textContent = `License status: Active${status.customerEmail ? ` (${status.customerEmail})` : ""}`;
-							licenseStatusEl.className = "mod-success";
-						} else {
-							licenseStatusEl.textContent = "License status: Invalid or expired. Check your key and try again.";
-							licenseStatusEl.className = "mod-warning";
-						}
+						void validateLicense(key).then((status) => {
+							this.plugin.settings.licenseStatus = status;
+							this.plugin.settings.isPro = status.valid;
+							void this.plugin.saveSettings().then(() => {
+								btn.setButtonText("Validate").setDisabled(false);
+								if (status.valid) {
+									licenseStatusEl.textContent = `License status: Active${status.customerEmail ? ` (${status.customerEmail})` : ""}`;
+									licenseStatusEl.className = "mod-success";
+								} else {
+									licenseStatusEl.textContent = "License status: Invalid or expired. Check your key and try again.";
+									licenseStatusEl.className = "mod-warning";
+								}
+							});
+						});
 					})
 			);
 
 		new Setting(containerEl)
 			.addButton((btn) =>
 				btn
-					.setButtonText("Get Arcadia Projects Premium")
+					.setButtonText("Get premium")
 					.onClick(() => {
 						window.open("https://arcadia-studio.lemonsqueezy.com", "_blank");
 					})

@@ -1,6 +1,6 @@
-import { App, setIcon } from "obsidian";
+import { App } from "obsidian";
 import { ProjectDataManager } from "./data";
-import { ProjectNote, SortState, ArcadiaProjectsSettings } from "./types";
+import { SortState, ArcadiaProjectsSettings } from "./types";
 
 export class TableView {
 	private app: App;
@@ -103,15 +103,16 @@ export class TableView {
 					});
 					link.addEventListener("click", (e) => {
 						e.preventDefault();
-						this.app.workspace.openLinkText(note.file.path, "", false);
+						void this.app.workspace.openLinkText(note.file.path, "", false);
 					});
 				} else {
 					const val = note.properties[col];
 					td.setText(this.formatCellValue(val));
 
 					// Add status class for styling
-					if (col === this.settings.statusProperty && val) {
-						td.addClass(`arcadia-projects-status-${String(val).toLowerCase().replace(/\s+/g, "-")}`);
+					if (col === this.settings.statusProperty && val != null) {
+						const statusStr = typeof val === "object" ? JSON.stringify(val) : String(val);
+						td.addClass(`arcadia-projects-status-${statusStr.toLowerCase().replace(/\s+/g, "-")}`);
 					}
 				}
 			}

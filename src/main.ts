@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf } from "obsidian";
+import { Plugin } from "obsidian";
 import { ArcadiaProjectsSettings, DEFAULT_SETTINGS, VIEW_TYPE_ARCADIA_PROJECTS } from "./types";
 import { ArcadiaProjectsSettingTab } from "./settings";
 import { ProjectDataManager } from "./data";
@@ -19,26 +19,26 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 		});
 
 		// Ribbon icon
-		this.addRibbonIcon("layout-dashboard", "Open Arcadia Projects", () => {
+		this.addRibbonIcon("layout-dashboard", "Open Arcadia projects", () => {
 			void this.activateView();
 		});
 
 		// Commands
 		this.addCommand({
 			id: "open-project-view",
-			name: "Open Project View",
+			name: "Open project view",
 			callback: () => { void this.activateView(); },
 		});
 
 		this.addCommand({
 			id: "switch-to-table",
-			name: "Switch to Table View",
+			name: "Switch to table view",
 			callback: () => { this.switchView("table"); },
 		});
 
 		this.addCommand({
 			id: "switch-to-kanban",
-			name: "Switch to Kanban View",
+			name: "Switch to kanban view",
 			callback: () => { this.switchView("kanban"); },
 		});
 

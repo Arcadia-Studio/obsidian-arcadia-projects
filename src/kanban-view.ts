@@ -1,6 +1,6 @@
 import { App, Notice, Modal, Setting } from "obsidian";
 import { ProjectDataManager } from "./data";
-import { ProjectNote, ArcadiaProjectsSettings } from "./types";
+import { ArcadiaProjectsSettings, ProjectNote } from "./types";
 
 export class KanbanView {
 	private app: App;
@@ -143,8 +143,8 @@ export class KanbanView {
 			// Skip the status field since the column already shows it
 			if (field === this.settings.statusProperty) continue;
 
-			const val = note.properties[field];
-			if (val == null || val === "") continue;
+			const rawFieldVal = note.properties[field];
+			if (rawFieldVal == null || rawFieldVal === "") continue;
 
 			const fieldEl = fieldsContainer.createDiv({ cls: "arcadia-projects-kanban-card-field" });
 			fieldEl.createSpan({
@@ -153,7 +153,7 @@ export class KanbanView {
 			});
 			fieldEl.createSpan({
 				cls: "arcadia-projects-kanban-card-field-value",
-				text: this.formatValue(val),
+				text: this.formatValue(rawFieldVal),
 			});
 		}
 
@@ -186,6 +186,7 @@ export class KanbanView {
 	private formatValue(val: unknown): string {
 		if (val == null) return "";
 		if (Array.isArray(val)) return val.join(", ");
+		if (typeof val === "object") return JSON.stringify(val);
 		return String(val);
 	}
 
@@ -220,7 +221,7 @@ class CreateNoteModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.createEl("h3", { text: "Create new note" });
+		new Setting(contentEl).setName("Create new note").setHeading();
 
 		new Setting(contentEl).setName("Title").addText((text) => {
 			text.setPlaceholder("Note title").onChange((value) => {
@@ -258,7 +259,7 @@ class CreateNoteModal extends Modal {
 			new Notice(`Created "${this.noteTitle}"`);
 			this.close();
 		} catch (err) {
-			new Notice(`Failed to create note: ${err}`);
+			new Notice(`Failed to create note: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 
@@ -266,3 +267,4 @@ class CreateNoteModal extends Modal {
 		this.contentEl.empty();
 	}
 }
+

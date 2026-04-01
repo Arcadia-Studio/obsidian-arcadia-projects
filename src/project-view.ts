@@ -1,4 +1,4 @@
-import { App, ItemView, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import { VIEW_TYPE_ARCADIA_PROJECTS, ViewMode, ArcadiaProjectsSettings } from "./types";
 import { ProjectDataManager } from "./data";
 import { TableView } from "./table-view";
@@ -30,14 +30,14 @@ export class ProjectView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Arcadia Projects";
+		return "Arcadia projects";
 	}
 
 	getIcon(): string {
 		return "layout-dashboard";
 	}
 
-	async onOpen(): Promise<void> {
+	onOpen(): void {
 		const container = this.containerEl.children[1] as HTMLElement;
 		container.empty();
 		container.addClass("arcadia-projects-root");
@@ -79,7 +79,7 @@ export class ProjectView extends ItemView {
 		this.updateTabStates();
 	}
 
-	async onClose(): Promise<void> {
+	onClose(): void {
 		this.dataManager.off("data-changed", this.dataChangedHandler);
 		this.destroyViews();
 	}
