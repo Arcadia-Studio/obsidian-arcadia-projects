@@ -181,7 +181,7 @@ export class ProjectDataManager extends Events {
 				if (typeof rawVal === "object") {
 					val = JSON.stringify(rawVal).trim();
 				} else {
-					val = String(rawVal).trim();
+					val = `${rawVal as string | number | boolean}`.trim();
 				}
 			}
 

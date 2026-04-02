@@ -327,7 +327,7 @@ var ProjectDataManager = class extends import_obsidian3.Events {
         if (typeof rawVal === "object") {
           val = JSON.stringify(rawVal).trim();
         } else {
-          val = String(rawVal).trim();
+          val = `${rawVal}`.trim();
         }
       }
       if (val && groups.has(val)) {
