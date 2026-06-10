@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => ArcadiaProjectsPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/types.ts
 var VIEW_TYPE_ARCADIA_PROJECTS = "arcadia-projects-view";
@@ -50,8 +50,9 @@ var import_obsidian2 = require("obsidian");
 // src/license.ts
 var import_obsidian = require("obsidian");
 var LICENSE_CACHE_DURATION = 24 * 60 * 60 * 1e3;
-async function validateLicense(licenseKey, instanceName = "obsidian") {
-  var _a, _b, _c;
+var LICENSE_GRACE_PERIOD = 14 * 24 * 60 * 60 * 1e3;
+async function validateLicense(licenseKey) {
+  var _a, _b, _c, _d, _e;
   try {
     const response = await (0, import_obsidian.requestUrl)({
       url: "https://api.lemonsqueezy.com/v1/licenses/validate",
@@ -60,22 +61,67 @@ async function validateLicense(licenseKey, instanceName = "obsidian") {
         "Content-Type": "application/json",
         "Accept": "application/json"
       },
-      body: JSON.stringify({ license_key: licenseKey, instance_name: instanceName })
+      body: JSON.stringify({ license_key: licenseKey }),
+      throw: false
     });
-    const data = response.json;
-    if (data.valid) {
+    let data = null;
+    try {
+      data = response.json;
+    } catch (e) {
+      data = null;
+    }
+    if (response.status >= 200 && response.status < 300 && (data == null ? void 0 : data.valid)) {
       return {
         valid: true,
+        offline: false,
         instanceId: (_a = data.instance) == null ? void 0 : _a.id,
         customerEmail: (_b = data.meta) == null ? void 0 : _b.customer_email,
-        expiresAt: (_c = data.license_key) == null ? void 0 : _c.expires_at,
+        expiresAt: (_d = (_c = data.license_key) == null ? void 0 : _c.expires_at) != null ? _d : void 0,
         lastChecked: Date.now()
       };
     }
-    return { valid: false, lastChecked: Date.now() };
+    if (response.status >= 500 || response.status === 429) {
+      return {
+        valid: false,
+        offline: true,
+        message: "The license server is temporarily unavailable.",
+        lastChecked: Date.now()
+      };
+    }
+    if (data && (data.valid === false || typeof data.error === "string")) {
+      return {
+        valid: false,
+        offline: false,
+        message: (_e = data.error) != null ? _e : "The license key is invalid or expired.",
+        lastChecked: Date.now()
+      };
+    }
+    return {
+      valid: false,
+      offline: true,
+      message: "The license server returned an unexpected response.",
+      lastChecked: Date.now()
+    };
   } catch (e) {
-    return { valid: false, lastChecked: Date.now() };
+    return {
+      valid: false,
+      offline: true,
+      message: "Could not reach the license server.",
+      lastChecked: Date.now()
+    };
   }
+}
+function toStoredStatus(result) {
+  return {
+    valid: result.valid,
+    instanceId: result.instanceId,
+    customerEmail: result.customerEmail,
+    expiresAt: result.expiresAt,
+    lastChecked: result.lastChecked
+  };
+}
+function isCacheValid(status) {
+  return Date.now() - status.lastChecked < LICENSE_CACHE_DURATION;
 }
 
 // src/settings.ts
@@ -94,19 +140,19 @@ var ArcadiaProjectsSettingTab = class extends import_obsidian2.PluginSettingTab 
       })
     );
     new import_obsidian2.Setting(containerEl).setName("Status property").setDesc("Frontmatter property used for status (used as kanban columns).").addText(
-      (text) => text.setPlaceholder("status").setValue(this.plugin.settings.statusProperty).onChange((value) => {
+      (text) => text.setPlaceholder("Status").setValue(this.plugin.settings.statusProperty).onChange((value) => {
         this.plugin.settings.statusProperty = value.trim();
         void this.plugin.saveSettings();
       })
     );
     new import_obsidian2.Setting(containerEl).setName("Status values").setDesc("Comma-separated list of status values (defines kanban column order).").addText(
-      (text) => text.setPlaceholder("todo, in-progress, done").setValue(this.plugin.settings.statusValues.join(", ")).onChange((value) => {
+      (text) => text.setPlaceholder("Todo, in-progress, done").setValue(this.plugin.settings.statusValues.join(", ")).onChange((value) => {
         this.plugin.settings.statusValues = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
         void this.plugin.saveSettings();
       })
     );
     new import_obsidian2.Setting(containerEl).setName("Date property").setDesc("Frontmatter property used for due dates.").addText(
-      (text) => text.setPlaceholder("due").setValue(this.plugin.settings.dateProperty).onChange((value) => {
+      (text) => text.setPlaceholder("Due").setValue(this.plugin.settings.dateProperty).onChange((value) => {
         this.plugin.settings.dateProperty = value.trim();
         void this.plugin.saveSettings();
       })
@@ -118,7 +164,7 @@ var ArcadiaProjectsSettingTab = class extends import_obsidian2.PluginSettingTab 
       })
     );
     new import_obsidian2.Setting(containerEl).setName("Card display fields").setDesc("Comma-separated list of frontmatter properties to show on kanban cards.").addText(
-      (text) => text.setPlaceholder("status, due, tags").setValue(this.plugin.settings.cardFields.join(", ")).onChange((value) => {
+      (text) => text.setPlaceholder("Status, due, tags").setValue(this.plugin.settings.cardFields.join(", ")).onChange((value) => {
         this.plugin.settings.cardFields = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
         void this.plugin.saveSettings();
       })
@@ -126,36 +172,19 @@ var ArcadiaProjectsSettingTab = class extends import_obsidian2.PluginSettingTab 
     new import_obsidian2.Setting(containerEl).setName("License").setHeading();
     const licenseStatus = this.plugin.settings.licenseStatus;
     const isPro = this.plugin.settings.isPro && (licenseStatus == null ? void 0 : licenseStatus.valid);
-    const statusDesc = isPro ? `Active${(licenseStatus == null ? void 0 : licenseStatus.customerEmail) ? ` (${licenseStatus.customerEmail})` : ""}${(licenseStatus == null ? void 0 : licenseStatus.expiresAt) ? ` - expires ${licenseStatus.expiresAt}` : ""}` : "No active license. Enter your license key and click Validate.";
-    const licenseStatusEl = containerEl.createEl("p", {
+    const statusDesc = isPro ? `Active${(licenseStatus == null ? void 0 : licenseStatus.customerEmail) ? ` (${licenseStatus.customerEmail})` : ""}${(licenseStatus == null ? void 0 : licenseStatus.expiresAt) ? `, expires ${licenseStatus.expiresAt}` : ""}` : "No active license. Enter your license key and click Validate.";
+    containerEl.createEl("p", {
       text: `License status: ${statusDesc}`,
       cls: isPro ? "mod-success" : "mod-warning"
     });
-    new import_obsidian2.Setting(containerEl).setName("License key").setDesc("Enter your license key from Lemon Squeezy.").addText(
-      (text) => text.setPlaceholder("XXXX-XXXX-XXXX-XXXX").setValue(this.plugin.settings.licenseKey).onChange((value) => {
+    new import_obsidian2.Setting(containerEl).setName("License key").setDesc("Enter your license key.").addText(
+      (text) => text.setPlaceholder("Xxxx-xxxx-xxxx-xxxx").setValue(this.plugin.settings.licenseKey).onChange((value) => {
         this.plugin.settings.licenseKey = value.trim();
         void this.plugin.saveSettings();
       })
     ).addButton(
       (btn) => btn.setButtonText("Validate").setCta().onClick(() => {
-        const key = this.plugin.settings.licenseKey.trim();
-        if (!key)
-          return;
-        btn.setButtonText("Checking...").setDisabled(true);
-        void validateLicense(key).then((status) => {
-          this.plugin.settings.licenseStatus = status;
-          this.plugin.settings.isPro = status.valid;
-          void this.plugin.saveSettings().then(() => {
-            btn.setButtonText("Validate").setDisabled(false);
-            if (status.valid) {
-              licenseStatusEl.textContent = `License status: Active${status.customerEmail ? ` (${status.customerEmail})` : ""}`;
-              licenseStatusEl.className = "mod-success";
-            } else {
-              licenseStatusEl.textContent = "License status: Invalid or expired. Check your key and try again.";
-              licenseStatusEl.className = "mod-warning";
-            }
-          });
-        });
+        void this.validateAndRefresh(btn);
       })
     );
     new import_obsidian2.Setting(containerEl).addButton(
@@ -163,6 +192,27 @@ var ArcadiaProjectsSettingTab = class extends import_obsidian2.PluginSettingTab 
         window.open("https://arcadia-studio.lemonsqueezy.com", "_blank");
       })
     );
+  }
+  async validateAndRefresh(btn) {
+    const key = this.plugin.settings.licenseKey.trim();
+    if (!key) {
+      new import_obsidian2.Notice("Enter a license key first.");
+      return;
+    }
+    btn.setButtonText("Checking...").setDisabled(true);
+    const result = await validateLicense(key);
+    if (result.offline) {
+      new import_obsidian2.Notice("Could not reach the license server. Check your connection and try again. A previously activated license stays active.");
+      btn.setButtonText("Validate").setDisabled(false);
+      return;
+    }
+    this.plugin.settings.licenseStatus = toStoredStatus(result);
+    this.plugin.settings.isPro = result.valid;
+    await this.plugin.saveSettings();
+    new import_obsidian2.Notice(
+      result.valid ? "License activated. Premium features are unlocked." : "The license key is invalid or expired. Check the key and try again."
+    );
+    this.display();
   }
 };
 
@@ -172,60 +222,83 @@ var ProjectDataManager = class extends import_obsidian3.Events {
   constructor(app, settings) {
     super();
     this.notes = [];
-    this.metadataCacheRef = null;
-    this.vaultRef = null;
-    this.vaultDeleteRef = null;
+    this.eventRefs = [];
+    /** Debounced so bursts of vault events trigger a single rebuild */
+    this.scheduleRefresh = (0, import_obsidian3.debounce)(() => this.refresh(), 150, true);
     this.app = app;
     this.settings = settings;
   }
   /** Start listening for vault changes */
   startListening() {
-    this.metadataCacheRef = this.app.metadataCache.on("changed", (file) => {
-      if (this.isProjectFile(file)) {
-        this.refresh();
-      }
+    const cache = this.app.metadataCache;
+    const vault = this.app.vault;
+    this.eventRefs.push({
+      emitter: cache,
+      ref: cache.on("changed", (file) => {
+        if (this.isProjectFile(file)) {
+          this.scheduleRefresh();
+        }
+      })
     });
-    this.vaultRef = this.app.vault.on("create", (file) => {
-      if (file instanceof import_obsidian3.TFile && this.isProjectFile(file)) {
-        this.refresh();
-      }
+    this.eventRefs.push({
+      emitter: vault,
+      ref: vault.on("create", (file) => {
+        if (file instanceof import_obsidian3.TFile && this.isProjectFile(file)) {
+          this.scheduleRefresh();
+        }
+      })
     });
-    this.vaultDeleteRef = this.app.vault.on("delete", (file) => {
-      if (file instanceof import_obsidian3.TFile && this.isProjectFile(file)) {
-        this.refresh();
-      }
+    this.eventRefs.push({
+      emitter: vault,
+      ref: vault.on("delete", (file) => {
+        if (file instanceof import_obsidian3.TFile && this.isProjectFile(file)) {
+          this.scheduleRefresh();
+        }
+      })
+    });
+    this.eventRefs.push({
+      emitter: vault,
+      ref: vault.on("rename", (file, oldPath) => {
+        if (file instanceof import_obsidian3.TFile && (this.isProjectFile(file) || this.isProjectPath(oldPath))) {
+          this.scheduleRefresh();
+        }
+      })
     });
   }
   /** Stop listening for vault changes */
   stopListening() {
-    if (this.metadataCacheRef) {
-      this.app.metadataCache.offref(this.metadataCacheRef);
-      this.metadataCacheRef = null;
+    this.scheduleRefresh.cancel();
+    for (const { emitter, ref } of this.eventRefs) {
+      emitter.offref(ref);
     }
-    if (this.vaultRef) {
-      this.app.vault.offref(this.vaultRef);
-      this.vaultRef = null;
-    }
-    if (this.vaultDeleteRef) {
-      this.app.vault.offref(this.vaultDeleteRef);
-      this.vaultDeleteRef = null;
-    }
+    this.eventRefs = [];
   }
   updateSettings(settings) {
     this.settings = settings;
   }
   /** Check if a file belongs to the configured project folder */
   isProjectFile(file) {
-    if (!this.settings.projectFolder)
-      return false;
-    const folderPath = this.normalizePath(this.settings.projectFolder);
-    return file.path.startsWith(folderPath) && file.extension === "md";
+    return file.extension === "md" && this.isProjectPath(file.path);
   }
-  normalizePath(path) {
-    let p = path.replace(/\\/g, "/");
-    if (!p.endsWith("/"))
-      p += "/";
-    return p;
+  /** Check if a vault path lies inside the configured project folder */
+  isProjectPath(path) {
+    const prefix = this.getFolderPrefix();
+    if (!prefix)
+      return false;
+    return path.startsWith(prefix) && path.endsWith(".md");
+  }
+  /** Cleaned project folder path with a trailing slash, or "" when unset */
+  getFolderPrefix() {
+    const folder = this.getFolderPath();
+    return folder ? folder + "/" : "";
+  }
+  /** Cleaned project folder path without a trailing slash, or "" when unset */
+  getFolderPath() {
+    const raw = this.settings.projectFolder.trim();
+    if (!raw)
+      return "";
+    const cleaned = (0, import_obsidian3.normalizePath)(raw);
+    return cleaned === "/" ? "" : cleaned;
   }
   /** Refresh the notes array from vault */
   refresh() {
@@ -234,13 +307,10 @@ var ProjectDataManager = class extends import_obsidian3.Events {
   }
   /** Load all project notes from the configured folder */
   loadNotes() {
-    const folderPath = this.settings.projectFolder;
+    const folderPath = this.getFolderPath();
     if (!folderPath)
       return [];
-    const normalizedPath = this.normalizePath(folderPath);
-    const folder = this.app.vault.getAbstractFileByPath(
-      normalizedPath.endsWith("/") ? normalizedPath.slice(0, -1) : normalizedPath
-    );
+    const folder = this.app.vault.getAbstractFileByPath(folderPath);
     if (!folder || !(folder instanceof import_obsidian3.TFolder))
       return [];
     const notes = [];
@@ -322,7 +392,14 @@ var ProjectDataManager = class extends import_obsidian3.Events {
     groups.set("__uncategorized__", []);
     for (const note of this.notes) {
       const rawVal = note.properties[property];
-      const val = rawVal != null ? (typeof rawVal === "object" ? JSON.stringify(rawVal) : String(rawVal)).trim() : "";
+      let val = "";
+      if (rawVal != null) {
+        if (typeof rawVal === "object") {
+          val = JSON.stringify(rawVal).trim();
+        } else {
+          val = `${rawVal}`.trim();
+        }
+      }
       if (val && groups.has(val)) {
         groups.get(val).push(note);
       } else if (val) {
@@ -354,28 +431,44 @@ var ProjectDataManager = class extends import_obsidian3.Events {
   }
   /** Create a new note in the project folder with given properties */
   async createNote(title, properties) {
-    const folderPath = this.settings.projectFolder.replace(/\/$/, "");
-    const filePath = `${folderPath}/${title}.md`;
-    let yaml = "---\n";
-    for (const [key, val] of Object.entries(properties)) {
-      yaml += `${key}: ${val}
-`;
+    const safeTitle = title.replace(/[\\/:*?"<>|#^[\]]/g, "").trim();
+    if (!safeTitle) {
+      throw new Error("The note title contains no usable characters.");
     }
-    yaml += "---\n";
-    const file = await this.app.vault.create(filePath, yaml);
+    const folderPath = this.getFolderPath();
+    if (!folderPath) {
+      throw new Error("Set a project folder in the plugin settings first.");
+    }
+    const folder = this.app.vault.getAbstractFileByPath(folderPath);
+    if (!(folder instanceof import_obsidian3.TFolder)) {
+      throw new Error(`The folder "${folderPath}" does not exist. Create it or update the project folder setting.`);
+    }
+    const filePath = (0, import_obsidian3.normalizePath)(`${folderPath}/${safeTitle}.md`);
+    if (this.app.vault.getAbstractFileByPath(filePath)) {
+      throw new Error(`A note named "${safeTitle}" already exists in "${folderPath}".`);
+    }
+    const file = await this.app.vault.create(filePath, "");
+    await this.app.fileManager.processFrontMatter(file, (fm) => {
+      for (const [key, val] of Object.entries(properties)) {
+        fm[key] = val;
+      }
+    });
     return file;
   }
 };
 
 // src/project-view.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/table-view.ts
+var import_obsidian4 = require("obsidian");
 var TableView = class {
   constructor(app, containerEl, dataManager, settings) {
     this.sortState = null;
     this.filterQuery = "";
     this.filterInputEl = null;
+    /** Debounced so the table is not rebuilt on every keystroke */
+    this.scheduleRenderTable = (0, import_obsidian4.debounce)(() => this.renderTable(), 150, true);
     this.app = app;
     this.containerEl = containerEl;
     this.dataManager = dataManager;
@@ -392,23 +485,25 @@ var TableView = class {
     this.filterInputEl.value = this.filterQuery;
     this.filterInputEl.addEventListener("input", () => {
       this.filterQuery = this.filterInputEl.value;
-      this.renderTable();
+      this.scheduleRenderTable();
     });
     this.containerEl.createDiv({ cls: "arcadia-projects-table-wrapper" });
     this.renderTable();
   }
   renderTable() {
     const wrapper = this.containerEl.querySelector(".arcadia-projects-table-wrapper");
-    if (!wrapper)
+    if (!(wrapper instanceof HTMLElement))
       return;
-    wrapper.innerHTML = "";
+    wrapper.empty();
     let notes = this.dataManager.getFilteredNotes(this.filterQuery);
     notes = this.dataManager.getSortedNotes(notes, this.sortState);
     if (notes.length === 0) {
       const empty = wrapper.createDiv({ cls: "arcadia-projects-empty" });
-      empty.setText(
-        this.dataManager.getNotes().length === 0 ? "No notes found. Check your project folder setting." : "No notes match the current filter."
-      );
+      let message = "No notes match the current filter.";
+      if (this.dataManager.getNotes().length === 0) {
+        message = this.settings.projectFolder.trim() ? `No notes found in "${this.settings.projectFolder}". Add notes to that folder or update the project folder setting.` : "Set a project folder in the Arcadia Projects settings to get started.";
+      }
+      empty.setText(message);
       return;
     }
     const allKeys = this.dataManager.getAllPropertyKeys();
@@ -480,12 +575,13 @@ var TableView = class {
     return String(val);
   }
   destroy() {
+    this.scheduleRenderTable.cancel();
     this.containerEl.empty();
   }
 };
 
 // src/kanban-view.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 var KanbanView = class {
   constructor(app, containerEl, dataManager, settings) {
     this.draggedNote = null;
@@ -504,7 +600,9 @@ var KanbanView = class {
     );
     if (this.dataManager.getNotes().length === 0) {
       const empty = this.containerEl.createDiv({ cls: "arcadia-projects-empty" });
-      empty.setText("No notes found. Check your project folder setting.");
+      empty.setText(
+        this.settings.projectFolder.trim() ? `No notes found in "${this.settings.projectFolder}". Add notes to that folder or update the project folder setting.` : "Set a project folder in the Arcadia Projects settings to get started."
+      );
       return;
     }
     const board = this.containerEl.createDiv({ cls: "arcadia-projects-kanban-board" });
@@ -540,7 +638,10 @@ var KanbanView = class {
     for (const note of notes) {
       this.renderCard(cardsContainer, note);
     }
+    const isDropTarget = statusVal !== "__uncategorized__";
     column.addEventListener("dragover", (e) => {
+      if (!isDropTarget)
+        return;
       e.preventDefault();
       column.addClass("arcadia-projects-kanban-column-dragover");
     });
@@ -551,18 +652,13 @@ var KanbanView = class {
       }
     });
     column.addEventListener("drop", (e) => {
-      void (async () => {
-        e.preventDefault();
-        column.removeClass("arcadia-projects-kanban-column-dragover");
-        if (this.draggedNote && statusVal !== "__uncategorized__") {
-          await this.dataManager.updateNoteProperty(
-            this.draggedNote.file,
-            this.settings.statusProperty,
-            statusVal
-          );
-          this.draggedNote = null;
-        }
-      })();
+      e.preventDefault();
+      column.removeClass("arcadia-projects-kanban-column-dragover");
+      const note = this.draggedNote;
+      this.draggedNote = null;
+      if (note && isDropTarget) {
+        void this.moveNote(note, statusVal);
+      }
     });
     if (statusVal !== "__uncategorized__") {
       const addBtn = column.createDiv({ cls: "arcadia-projects-kanban-add-card" });
@@ -614,6 +710,41 @@ var KanbanView = class {
       this.draggedNote = null;
       this.containerEl.querySelectorAll(".arcadia-projects-kanban-column-dragover").forEach((el) => el.removeClass("arcadia-projects-kanban-column-dragover"));
     });
+    card.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.showMoveMenu(note, e);
+    });
+  }
+  /** Write the new status to the note's frontmatter, skipping no-op moves */
+  async moveNote(note, statusVal) {
+    const current = note.properties[this.settings.statusProperty];
+    if (current != null && String(current).trim() === statusVal)
+      return;
+    try {
+      await this.dataManager.updateNoteProperty(
+        note.file,
+        this.settings.statusProperty,
+        statusVal
+      );
+    } catch (err) {
+      new import_obsidian5.Notice(
+        `Could not move "${note.title}": ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+  /** Menu listing the configured columns so a card can be moved without dragging */
+  showMoveMenu(note, e) {
+    const menu = new import_obsidian5.Menu();
+    const current = note.properties[this.settings.statusProperty];
+    const currentVal = current != null ? String(current).trim() : "";
+    for (const statusVal of this.settings.statusValues) {
+      menu.addItem((item) => {
+        item.setTitle(`Move to ${this.formatStatusName(statusVal)}`).setIcon("arrow-right").setDisabled(statusVal === currentVal).onClick(() => {
+          void this.moveNote(note, statusVal);
+        });
+      });
+    }
+    menu.showAtMouseEvent(e);
   }
   formatStatusName(status) {
     return status.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -635,10 +766,11 @@ var KanbanView = class {
     this.containerEl.empty();
   }
 };
-var CreateNoteModal = class extends import_obsidian4.Modal {
+var CreateNoteModal = class extends import_obsidian5.Modal {
   constructor(app, dataManager, settings, statusVal) {
     super(app);
     this.noteTitle = "";
+    this.creating = false;
     this.dataManager = dataManager;
     this.settings = settings;
     this.statusVal = statusVal;
@@ -646,19 +778,19 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
   async onOpen() {
     await Promise.resolve();
     const { contentEl } = this;
-    new import_obsidian4.Setting(contentEl).setName("Create new note").setHeading();
-    new import_obsidian4.Setting(contentEl).setName("Title").addText((text) => {
+    new import_obsidian5.Setting(contentEl).setName("Create new note").setHeading();
+    new import_obsidian5.Setting(contentEl).setName("Title").addText((text) => {
       text.setPlaceholder("Note title").onChange((value) => {
         this.noteTitle = value.trim();
       });
       setTimeout(() => text.inputEl.focus(), 50);
       text.inputEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
+        if (e.key === "Enter" && !e.isComposing) {
           void this.createNote();
         }
       });
     });
-    new import_obsidian4.Setting(contentEl).addButton((btn) => {
+    new import_obsidian5.Setting(contentEl).addButton((btn) => {
       btn.setButtonText("Create").setCta().onClick(() => {
         void this.createNote();
       });
@@ -666,18 +798,23 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
   }
   async createNote() {
     if (!this.noteTitle) {
-      new import_obsidian4.Notice("Please enter a note title.");
+      new import_obsidian5.Notice("Enter a note title first.");
       return;
     }
+    if (this.creating)
+      return;
+    this.creating = true;
     try {
       const properties = {
         [this.settings.statusProperty]: this.statusVal
       };
-      await this.dataManager.createNote(this.noteTitle, properties);
-      new import_obsidian4.Notice(`Created "${this.noteTitle}"`);
+      const file = await this.dataManager.createNote(this.noteTitle, properties);
+      new import_obsidian5.Notice(`Created "${file.basename}"`);
       this.close();
     } catch (err) {
-      new import_obsidian4.Notice(`Failed to create note: ${err instanceof Error ? err.message : String(err)}`);
+      new import_obsidian5.Notice(`Could not create the note: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      this.creating = false;
     }
   }
   onClose() {
@@ -686,7 +823,7 @@ var CreateNoteModal = class extends import_obsidian4.Modal {
 };
 
 // src/project-view.ts
-var ProjectView = class extends import_obsidian5.ItemView {
+var ProjectView = class extends import_obsidian6.ItemView {
   constructor(leaf, settings, dataManager) {
     super(leaf);
     this.tableView = null;
@@ -701,7 +838,7 @@ var ProjectView = class extends import_obsidian5.ItemView {
     return VIEW_TYPE_ARCADIA_PROJECTS;
   }
   getDisplayText() {
-    return "Arcadia projects";
+    return "Arcadia Projects";
   }
   getIcon() {
     return "layout-dashboard";
@@ -714,27 +851,26 @@ var ProjectView = class extends import_obsidian5.ItemView {
     const toolbar = container.createDiv({ cls: "arcadia-projects-toolbar" });
     const tabs = toolbar.createDiv({ cls: "arcadia-projects-tabs" });
     const tableTab = tabs.createDiv({ cls: "arcadia-projects-tab" });
-    (0, import_obsidian5.setIcon)(tableTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "table");
+    (0, import_obsidian6.setIcon)(tableTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "table");
     tableTab.createSpan({ text: "Table" });
-    tableTab.addEventListener("click", () => this.switchView("table"));
+    this.registerDomEvent(tableTab, "click", () => this.switchView("table"));
     const kanbanTab = tabs.createDiv({ cls: "arcadia-projects-tab" });
-    (0, import_obsidian5.setIcon)(kanbanTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "columns");
+    (0, import_obsidian6.setIcon)(kanbanTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "columns");
     kanbanTab.createSpan({ text: "Kanban" });
-    kanbanTab.addEventListener("click", () => this.switchView("kanban"));
+    this.registerDomEvent(kanbanTab, "click", () => this.switchView("kanban"));
     const refreshBtn = toolbar.createDiv({ cls: "arcadia-projects-refresh-btn" });
-    (0, import_obsidian5.setIcon)(refreshBtn, "refresh-cw");
+    (0, import_obsidian6.setIcon)(refreshBtn, "refresh-cw");
     refreshBtn.setAttribute("aria-label", "Refresh");
-    refreshBtn.addEventListener("click", () => {
+    this.registerDomEvent(refreshBtn, "click", () => {
       this.dataManager.refresh();
     });
     this.contentContainerEl = container.createDiv({ cls: "arcadia-projects-content" });
-    this.dataManager.on("data-changed", this.dataChangedHandler);
+    this.registerEvent(this.dataManager.on("data-changed", this.dataChangedHandler));
     this.dataManager.refresh();
     this.updateTabStates();
   }
   async onClose() {
     await Promise.resolve();
-    this.dataManager.off("data-changed", this.dataChangedHandler);
     this.destroyViews();
   }
   switchView(mode) {
@@ -744,6 +880,7 @@ var ProjectView = class extends import_obsidian5.ItemView {
   }
   updateSettings(settings) {
     this.settings = settings;
+    this.destroyViews();
     this.dataManager.updateSettings(settings);
     this.dataManager.refresh();
   }
@@ -760,22 +897,33 @@ var ProjectView = class extends import_obsidian5.ItemView {
   renderCurrentView() {
     if (!this.contentContainerEl)
       return;
-    this.destroyViews();
     if (this.currentMode === "table") {
-      this.tableView = new TableView(
-        this.app,
-        this.contentContainerEl,
-        this.dataManager,
-        this.settings
-      );
+      if (this.kanbanView) {
+        this.kanbanView.destroy();
+        this.kanbanView = null;
+      }
+      if (!this.tableView) {
+        this.tableView = new TableView(
+          this.app,
+          this.contentContainerEl,
+          this.dataManager,
+          this.settings
+        );
+      }
       this.tableView.render();
     } else {
-      this.kanbanView = new KanbanView(
-        this.app,
-        this.contentContainerEl,
-        this.dataManager,
-        this.settings
-      );
+      if (this.tableView) {
+        this.tableView.destroy();
+        this.tableView = null;
+      }
+      if (!this.kanbanView) {
+        this.kanbanView = new KanbanView(
+          this.app,
+          this.contentContainerEl,
+          this.dataManager,
+          this.settings
+        );
+      }
       this.kanbanView.render();
     }
   }
@@ -792,7 +940,7 @@ var ProjectView = class extends import_obsidian5.ItemView {
 };
 
 // src/main.ts
-var ArcadiaProjectsPlugin = class extends import_obsidian6.Plugin {
+var ArcadiaProjectsPlugin = class extends import_obsidian7.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -832,7 +980,31 @@ var ArcadiaProjectsPlugin = class extends import_obsidian6.Plugin {
     this.app.workspace.onLayoutReady(() => {
       var _a;
       (_a = this.dataManager) == null ? void 0 : _a.startListening();
+      void this.refreshLicenseInBackground();
     });
+  }
+  /**
+   * Revalidate the stored license once per cache window. Network failures
+   * never downgrade a cached valid license, so premium stays available
+   * offline; only an explicit "invalid" answer from the server disables it.
+   */
+  async refreshLicenseInBackground() {
+    const key = this.settings.licenseKey.trim();
+    if (!key)
+      return;
+    const cached = this.settings.licenseStatus;
+    if (cached && isCacheValid(cached))
+      return;
+    const result = await validateLicense(key);
+    if (result.offline)
+      return;
+    const wasPro = this.settings.isPro;
+    this.settings.licenseStatus = toStoredStatus(result);
+    this.settings.isPro = result.valid;
+    await this.saveSettings();
+    if (wasPro && !result.valid) {
+      new import_obsidian7.Notice("Arcadia Projects: your license is no longer valid. Premium features are disabled. Check the license key in the plugin settings.");
+    }
   }
   onunload() {
     var _a;

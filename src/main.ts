@@ -1,8 +1,9 @@
-import { Plugin } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import { ArcadiaProjectsSettings, DEFAULT_SETTINGS, VIEW_TYPE_ARCADIA_PROJECTS } from "./types";
 import { ArcadiaProjectsSettingTab } from "./settings";
 import { ProjectDataManager } from "./data";
 import { ProjectView } from "./project-view";
+import { isCacheValid, toStoredStatus, validateLicense } from "./license";
 
 export default class ArcadiaProjectsPlugin extends Plugin {
 	settings: ArcadiaProjectsSettings = DEFAULT_SETTINGS;
@@ -19,7 +20,7 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 		});
 
 		// Ribbon icon
-		this.addRibbonIcon("layout-dashboard", "Open arcadia projects", () => {
+		this.addRibbonIcon("layout-dashboard", "Open Arcadia Projects", () => {
 			void this.activateView();
 		});
 
@@ -48,7 +49,32 @@ export default class ArcadiaProjectsPlugin extends Plugin {
 		// Start data listening after layout is ready
 		this.app.workspace.onLayoutReady(() => {
 			this.dataManager?.startListening();
+			void this.refreshLicenseInBackground();
 		});
+	}
+
+	/**
+	 * Revalidate the stored license once per cache window. Network failures
+	 * never downgrade a cached valid license, so premium stays available
+	 * offline; only an explicit "invalid" answer from the server disables it.
+	 */
+	private async refreshLicenseInBackground(): Promise<void> {
+		const key = this.settings.licenseKey.trim();
+		if (!key) return;
+		const cached = this.settings.licenseStatus;
+		if (cached && isCacheValid(cached)) return;
+
+		const result = await validateLicense(key);
+		if (result.offline) return; // fail soft: keep the cached status
+
+		const wasPro = this.settings.isPro;
+		this.settings.licenseStatus = toStoredStatus(result);
+		this.settings.isPro = result.valid;
+		await this.saveSettings();
+
+		if (wasPro && !result.valid) {
+			new Notice("Arcadia Projects: your license is no longer valid. Premium features are disabled. Check the license key in the plugin settings.");
+		}
 	}
 
 	onunload(): void {

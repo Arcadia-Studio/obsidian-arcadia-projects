@@ -1,4 +1,4 @@
-import { App, Notice, Modal, Setting } from "obsidian";
+import { App, Menu, Notice, Modal, Setting } from "obsidian";
 import { ProjectDataManager } from "./data";
 import { ArcadiaProjectsSettings, ProjectNote } from "./types";
 
@@ -32,7 +32,11 @@ export class KanbanView {
 
 		if (this.dataManager.getNotes().length === 0) {
 			const empty = this.containerEl.createDiv({ cls: "arcadia-projects-empty" });
-			empty.setText("No notes found. Check your project folder setting.");
+			empty.setText(
+				this.settings.projectFolder.trim()
+					? `No notes found in "${this.settings.projectFolder}". Add notes to that folder or update the project folder setting.`
+					: "Set a project folder in the Arcadia Projects settings to get started."
+			);
 			return;
 		}
 
@@ -81,8 +85,11 @@ export class KanbanView {
 			this.renderCard(cardsContainer, note);
 		}
 
-		// Drop zone events
+		// Drop zone events (the uncategorized column is not a drop target)
+		const isDropTarget = statusVal !== "__uncategorized__";
+
 		column.addEventListener("dragover", (e) => {
+			if (!isDropTarget) return;
 			e.preventDefault();
 			column.addClass("arcadia-projects-kanban-column-dragover");
 		});
@@ -96,20 +103,14 @@ export class KanbanView {
 		});
 
 		column.addEventListener("drop", (e) => {
-			void (async () => {
-				e.preventDefault();
-				column.removeClass("arcadia-projects-kanban-column-dragover");
+			e.preventDefault();
+			column.removeClass("arcadia-projects-kanban-column-dragover");
 
-				if (this.draggedNote && statusVal !== "__uncategorized__") {
-					await this.dataManager.updateNoteProperty(
-						this.draggedNote.file,
-						this.settings.statusProperty,
-						statusVal
-					);
-					this.draggedNote = null;
-					// Data manager will emit data-changed, which triggers re-render
-				}
-			})();
+			const note = this.draggedNote;
+			this.draggedNote = null;
+			if (note && isDropTarget) {
+				void this.moveNote(note, statusVal);
+			}
 		});
 
 		// Add card button (not for uncategorized)
@@ -175,6 +176,50 @@ export class KanbanView {
 				.querySelectorAll(".arcadia-projects-kanban-column-dragover")
 				.forEach((el) => el.removeClass("arcadia-projects-kanban-column-dragover"));
 		});
+
+		// Context menu fallback for moving cards (right-click on desktop,
+		// long-press on mobile, where drag and drop is not available)
+		card.addEventListener("contextmenu", (e) => {
+			e.preventDefault();
+			this.showMoveMenu(note, e);
+		});
+	}
+
+	/** Write the new status to the note's frontmatter, skipping no-op moves */
+	private async moveNote(note: ProjectNote, statusVal: string): Promise<void> {
+		const current = note.properties[this.settings.statusProperty];
+		if (current != null && String(current).trim() === statusVal) return;
+
+		try {
+			await this.dataManager.updateNoteProperty(
+				note.file,
+				this.settings.statusProperty,
+				statusVal
+			);
+			// Data manager will emit data-changed, which triggers re-render
+		} catch (err) {
+			new Notice(
+				`Could not move "${note.title}": ${err instanceof Error ? err.message : String(err)}`
+			);
+		}
+	}
+
+	/** Menu listing the configured columns so a card can be moved without dragging */
+	private showMoveMenu(note: ProjectNote, e: MouseEvent): void {
+		const menu = new Menu();
+		const current = note.properties[this.settings.statusProperty];
+		const currentVal = current != null ? String(current).trim() : "";
+
+		for (const statusVal of this.settings.statusValues) {
+			menu.addItem((item) => {
+				item.setTitle(`Move to ${this.formatStatusName(statusVal)}`)
+					.setIcon("arrow-right")
+					.setDisabled(statusVal === currentVal)
+					.onClick(() => { void this.moveNote(note, statusVal); });
+			});
+		}
+
+		menu.showAtMouseEvent(e);
 	}
 
 	private formatStatusName(status: string): string {
@@ -206,6 +251,7 @@ class CreateNoteModal extends Modal {
 	private settings: ArcadiaProjectsSettings;
 	private statusVal: string;
 	private noteTitle = "";
+	private creating = false;
 
 	constructor(
 		app: App,
@@ -231,9 +277,9 @@ class CreateNoteModal extends Modal {
 			// Focus the input
 			setTimeout(() => text.inputEl.focus(), 50);
 
-			// Enter key to create
+			// Enter key to create (ignore IME composition)
 			text.inputEl.addEventListener("keydown", (e) => {
-				if (e.key === "Enter") {
+				if (e.key === "Enter" && !e.isComposing) {
 					void this.createNote();
 				}
 			});
@@ -248,19 +294,23 @@ class CreateNoteModal extends Modal {
 
 	private async createNote(): Promise<void> {
 		if (!this.noteTitle) {
-			new Notice("Please enter a note title.");
+			new Notice("Enter a note title first.");
 			return;
 		}
+		if (this.creating) return;
+		this.creating = true;
 
 		try {
 			const properties: Record<string, string> = {
 				[this.settings.statusProperty]: this.statusVal,
 			};
-			await this.dataManager.createNote(this.noteTitle, properties);
-			new Notice(`Created "${this.noteTitle}"`);
+			const file = await this.dataManager.createNote(this.noteTitle, properties);
+			new Notice(`Created "${file.basename}"`);
 			this.close();
 		} catch (err) {
-			new Notice(`Failed to create note: ${err instanceof Error ? err.message : String(err)}`);
+			new Notice(`Could not create the note: ${err instanceof Error ? err.message : String(err)}`);
+		} finally {
+			this.creating = false;
 		}
 	}
 

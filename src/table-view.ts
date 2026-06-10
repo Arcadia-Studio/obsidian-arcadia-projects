@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, debounce } from "obsidian";
 import { ProjectDataManager } from "./data";
 import { SortState, ArcadiaProjectsSettings } from "./types";
 
@@ -10,6 +10,9 @@ export class TableView {
 	private sortState: SortState | null = null;
 	private filterQuery = "";
 	private filterInputEl: HTMLInputElement | null = null;
+
+	/** Debounced so the table is not rebuilt on every keystroke */
+	private scheduleRenderTable = debounce(() => this.renderTable(), 150, true);
 
 	constructor(
 		app: App,
@@ -36,7 +39,7 @@ export class TableView {
 		this.filterInputEl.value = this.filterQuery;
 		this.filterInputEl.addEventListener("input", () => {
 			this.filterQuery = this.filterInputEl!.value;
-			this.renderTable();
+			this.scheduleRenderTable();
 		});
 
 		// Table wrapper (for horizontal scroll)
@@ -47,19 +50,21 @@ export class TableView {
 
 	private renderTable(): void {
 		const wrapper = this.containerEl.querySelector(".arcadia-projects-table-wrapper");
-		if (!wrapper) return;
-		wrapper.innerHTML = "";
+		if (!(wrapper instanceof HTMLElement)) return;
+		wrapper.empty();
 
 		let notes = this.dataManager.getFilteredNotes(this.filterQuery);
 		notes = this.dataManager.getSortedNotes(notes, this.sortState);
 
 		if (notes.length === 0) {
 			const empty = wrapper.createDiv({ cls: "arcadia-projects-empty" });
-			empty.setText(
-				this.dataManager.getNotes().length === 0
-					? "No notes found. Check your project folder setting."
-					: "No notes match the current filter."
-			);
+			let message = "No notes match the current filter.";
+			if (this.dataManager.getNotes().length === 0) {
+				message = this.settings.projectFolder.trim()
+					? `No notes found in "${this.settings.projectFolder}". Add notes to that folder or update the project folder setting.`
+					: "Set a project folder in the Arcadia Projects settings to get started.";
+			}
+			empty.setText(message);
 			return;
 		}
 
@@ -148,6 +153,7 @@ export class TableView {
 	}
 
 	destroy(): void {
+		this.scheduleRenderTable.cancel();
 		this.containerEl.empty();
 	}
 }

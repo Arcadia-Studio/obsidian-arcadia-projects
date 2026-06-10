@@ -30,7 +30,7 @@ export class ProjectView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Arcadia projects";
+		return "Arcadia Projects";
 	}
 
 	getIcon(): string {
@@ -52,26 +52,26 @@ export class ProjectView extends ItemView {
 		const tableTab = tabs.createDiv({ cls: "arcadia-projects-tab" });
 		setIcon(tableTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "table");
 		tableTab.createSpan({ text: "Table" });
-		tableTab.addEventListener("click", () => this.switchView("table"));
+		this.registerDomEvent(tableTab, "click", () => this.switchView("table"));
 
 		const kanbanTab = tabs.createDiv({ cls: "arcadia-projects-tab" });
 		setIcon(kanbanTab.createSpan({ cls: "arcadia-projects-tab-icon" }), "columns");
 		kanbanTab.createSpan({ text: "Kanban" });
-		kanbanTab.addEventListener("click", () => this.switchView("kanban"));
+		this.registerDomEvent(kanbanTab, "click", () => this.switchView("kanban"));
 
 		// Refresh button
 		const refreshBtn = toolbar.createDiv({ cls: "arcadia-projects-refresh-btn" });
 		setIcon(refreshBtn, "refresh-cw");
 		refreshBtn.setAttribute("aria-label", "Refresh");
-		refreshBtn.addEventListener("click", () => {
+		this.registerDomEvent(refreshBtn, "click", () => {
 			this.dataManager.refresh();
 		});
 
 		// Content container
 		this.contentContainerEl = container.createDiv({ cls: "arcadia-projects-content" });
 
-		// Listen for data changes
-		this.dataManager.on("data-changed", this.dataChangedHandler);
+		// Listen for data changes (cleaned up automatically on view unload)
+		this.registerEvent(this.dataManager.on("data-changed", this.dataChangedHandler));
 
 		// Initial data load
 		this.dataManager.refresh();
@@ -82,7 +82,6 @@ export class ProjectView extends ItemView {
 
 	async onClose(): Promise<void> {
 		await Promise.resolve();
-		this.dataManager.off("data-changed", this.dataChangedHandler);
 		this.destroyViews();
 	}
 
@@ -94,6 +93,8 @@ export class ProjectView extends ItemView {
 
 	updateSettings(settings: ArcadiaProjectsSettings): void {
 		this.settings = settings;
+		// Recreate the sub-views so they pick up the new settings
+		this.destroyViews();
 		this.dataManager.updateSettings(settings);
 		this.dataManager.refresh();
 	}
@@ -115,23 +116,35 @@ export class ProjectView extends ItemView {
 	private renderCurrentView(): void {
 		if (!this.contentContainerEl) return;
 
-		this.destroyViews();
-
+		// Reuse the active sub-view on data refreshes so filter and sort
+		// state survive vault changes; only recreate on mode switch.
 		if (this.currentMode === "table") {
-			this.tableView = new TableView(
-				this.app,
-				this.contentContainerEl,
-				this.dataManager,
-				this.settings
-			);
+			if (this.kanbanView) {
+				this.kanbanView.destroy();
+				this.kanbanView = null;
+			}
+			if (!this.tableView) {
+				this.tableView = new TableView(
+					this.app,
+					this.contentContainerEl,
+					this.dataManager,
+					this.settings
+				);
+			}
 			this.tableView.render();
 		} else {
-			this.kanbanView = new KanbanView(
-				this.app,
-				this.contentContainerEl,
-				this.dataManager,
-				this.settings
-			);
+			if (this.tableView) {
+				this.tableView.destroy();
+				this.tableView = null;
+			}
+			if (!this.kanbanView) {
+				this.kanbanView = new KanbanView(
+					this.app,
+					this.contentContainerEl,
+					this.dataManager,
+					this.settings
+				);
+			}
 			this.kanbanView.render();
 		}
 	}

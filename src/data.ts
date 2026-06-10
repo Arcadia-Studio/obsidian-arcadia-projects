@@ -1,13 +1,14 @@
-import { App, TFile, TFolder, Events } from "obsidian";
+import { App, TFile, TFolder, Events, EventRef, debounce, normalizePath } from "obsidian";
 import { ArcadiaProjectsSettings, ProjectNote, SortState } from "./types";
 
 export class ProjectDataManager extends Events {
 	private app: App;
 	private settings: ArcadiaProjectsSettings;
 	private notes: ProjectNote[] = [];
-	private metadataCacheRef: ReturnType<typeof this.app.metadataCache.on> | null = null;
-	private vaultRef: ReturnType<typeof this.app.vault.on> | null = null;
-	private vaultDeleteRef: ReturnType<typeof this.app.vault.on> | null = null;
+	private eventRefs: { emitter: Events; ref: EventRef }[] = [];
+
+	/** Debounced so bursts of vault events trigger a single rebuild */
+	private scheduleRefresh = debounce(() => this.refresh(), 150, true);
 
 	constructor(app: App, settings: ArcadiaProjectsSettings) {
 		super();
@@ -17,39 +18,53 @@ export class ProjectDataManager extends Events {
 
 	/** Start listening for vault changes */
 	startListening(): void {
-		this.metadataCacheRef = this.app.metadataCache.on("changed", (file) => {
-			if (this.isProjectFile(file)) {
-				this.refresh();
-			}
+		const cache = this.app.metadataCache;
+		const vault = this.app.vault;
+
+		this.eventRefs.push({
+			emitter: cache,
+			ref: cache.on("changed", (file) => {
+				if (this.isProjectFile(file)) {
+					this.scheduleRefresh();
+				}
+			}),
 		});
 
-		this.vaultRef = this.app.vault.on("create", (file) => {
-			if (file instanceof TFile && this.isProjectFile(file)) {
-				this.refresh();
-			}
+		this.eventRefs.push({
+			emitter: vault,
+			ref: vault.on("create", (file) => {
+				if (file instanceof TFile && this.isProjectFile(file)) {
+					this.scheduleRefresh();
+				}
+			}),
 		});
 
-		this.vaultDeleteRef = this.app.vault.on("delete", (file) => {
-			if (file instanceof TFile && this.isProjectFile(file)) {
-				this.refresh();
-			}
+		this.eventRefs.push({
+			emitter: vault,
+			ref: vault.on("delete", (file) => {
+				if (file instanceof TFile && this.isProjectFile(file)) {
+					this.scheduleRefresh();
+				}
+			}),
+		});
+
+		this.eventRefs.push({
+			emitter: vault,
+			ref: vault.on("rename", (file, oldPath) => {
+				if (file instanceof TFile && (this.isProjectFile(file) || this.isProjectPath(oldPath))) {
+					this.scheduleRefresh();
+				}
+			}),
 		});
 	}
 
 	/** Stop listening for vault changes */
 	stopListening(): void {
-		if (this.metadataCacheRef) {
-			this.app.metadataCache.offref(this.metadataCacheRef);
-			this.metadataCacheRef = null;
+		this.scheduleRefresh.cancel();
+		for (const { emitter, ref } of this.eventRefs) {
+			emitter.offref(ref);
 		}
-		if (this.vaultRef) {
-			this.app.vault.offref(this.vaultRef);
-			this.vaultRef = null;
-		}
-		if (this.vaultDeleteRef) {
-			this.app.vault.offref(this.vaultDeleteRef);
-			this.vaultDeleteRef = null;
-		}
+		this.eventRefs = [];
 	}
 
 	updateSettings(settings: ArcadiaProjectsSettings): void {
@@ -58,16 +73,28 @@ export class ProjectDataManager extends Events {
 
 	/** Check if a file belongs to the configured project folder */
 	private isProjectFile(file: TFile): boolean {
-		if (!this.settings.projectFolder) return false;
-		const folderPath = this.normalizePath(this.settings.projectFolder);
-		return file.path.startsWith(folderPath) && file.extension === "md";
+		return file.extension === "md" && this.isProjectPath(file.path);
 	}
 
-	private normalizePath(path: string): string {
-		// Ensure folder path ends with /
-		let p = path.replace(/\\/g, "/");
-		if (!p.endsWith("/")) p += "/";
-		return p;
+	/** Check if a vault path lies inside the configured project folder */
+	private isProjectPath(path: string): boolean {
+		const prefix = this.getFolderPrefix();
+		if (!prefix) return false;
+		return path.startsWith(prefix) && path.endsWith(".md");
+	}
+
+	/** Cleaned project folder path with a trailing slash, or "" when unset */
+	private getFolderPrefix(): string {
+		const folder = this.getFolderPath();
+		return folder ? folder + "/" : "";
+	}
+
+	/** Cleaned project folder path without a trailing slash, or "" when unset */
+	private getFolderPath(): string {
+		const raw = this.settings.projectFolder.trim();
+		if (!raw) return "";
+		const cleaned = normalizePath(raw);
+		return cleaned === "/" ? "" : cleaned;
 	}
 
 	/** Refresh the notes array from vault */
@@ -78,14 +105,10 @@ export class ProjectDataManager extends Events {
 
 	/** Load all project notes from the configured folder */
 	private loadNotes(): ProjectNote[] {
-		const folderPath = this.settings.projectFolder;
+		const folderPath = this.getFolderPath();
 		if (!folderPath) return [];
 
-		const normalizedPath = this.normalizePath(folderPath);
-		const folder = this.app.vault.getAbstractFileByPath(
-			normalizedPath.endsWith("/") ? normalizedPath.slice(0, -1) : normalizedPath
-		);
-
+		const folder = this.app.vault.getAbstractFileByPath(folderPath);
 		if (!folder || !(folder instanceof TFolder)) return [];
 
 		const notes: ProjectNote[] = [];
@@ -221,17 +244,35 @@ export class ProjectDataManager extends Events {
 
 	/** Create a new note in the project folder with given properties */
 	async createNote(title: string, properties: Record<string, string>): Promise<TFile> {
-		const folderPath = this.settings.projectFolder.replace(/\/$/, "");
-		const filePath = `${folderPath}/${title}.md`;
-
-		// Build YAML frontmatter
-		let yaml = "---\n";
-		for (const [key, val] of Object.entries(properties)) {
-			yaml += `${key}: ${val}\n`;
+		// Strip characters that are invalid in file names or break links
+		const safeTitle = title.replace(/[\\/:*?"<>|#^[\]]/g, "").trim();
+		if (!safeTitle) {
+			throw new Error("The note title contains no usable characters.");
 		}
-		yaml += "---\n";
 
-		const file = await this.app.vault.create(filePath, yaml);
+		const folderPath = this.getFolderPath();
+		if (!folderPath) {
+			throw new Error("Set a project folder in the plugin settings first.");
+		}
+
+		const folder = this.app.vault.getAbstractFileByPath(folderPath);
+		if (!(folder instanceof TFolder)) {
+			throw new Error(`The folder "${folderPath}" does not exist. Create it or update the project folder setting.`);
+		}
+
+		const filePath = normalizePath(`${folderPath}/${safeTitle}.md`);
+		if (this.app.vault.getAbstractFileByPath(filePath)) {
+			throw new Error(`A note named "${safeTitle}" already exists in "${folderPath}".`);
+		}
+
+		// Create the note empty, then let Obsidian write the frontmatter so the
+		// YAML is always valid regardless of the property values.
+		const file = await this.app.vault.create(filePath, "");
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			for (const [key, val] of Object.entries(properties)) {
+				fm[key] = val;
+			}
+		});
 		return file;
 	}
 }

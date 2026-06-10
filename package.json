@@ -1,11 +1,11 @@
 {
 	"name": "arcadia-projects",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"description": "Multi-view project management: Table and Kanban views of your vault notes.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+		"build": "tsc -noEmit && node esbuild.config.mjs production"
 	},
 	"keywords": [
 		"obsidian",
@@ -17,6 +17,8 @@
 	"author": "Peter J. Carter",
 	"license": "MIT",
 	"devDependencies": {
+		"@codemirror/state": "^6.6.0",
+		"@codemirror/view": "^6.43.1",
 		"@types/node": "^16.11.6",
 		"builtin-modules": "3.3.0",
 		"esbuild": "0.17.3",

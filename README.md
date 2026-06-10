@@ -1,56 +1,88 @@
 # Arcadia Projects
 
+Arcadia Projects turns the notes you already have into a project board. Point it at a folder and it reads each note's YAML frontmatter to build a sortable table and a drag-and-drop Kanban board, no separate database and no duplicate task lists. Move a card and the plugin writes the new status straight back into the note's frontmatter, so your notes stay the single source of truth.
+
 ![Arcadia Projects](docs/screenshot.png)
 
-Multi-view project management for Obsidian: visualize your vault notes as a Table or Kanban board, with real-time sync to your note metadata.
-
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![Obsidian](https://img.shields.io/badge/Obsidian-0.16+-purple)
+![Version](https://img.shields.io/badge/version-1.0.7-blue)
+![Obsidian](https://img.shields.io/badge/Obsidian-1.4.4+-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
-### Free
-- Table view showing notes as a sortable spreadsheet with YAML frontmatter columns
-- Kanban view for drag-and-drop task management driven by a status field
-- Basic filtering by folder, tag, or frontmatter value
-- Live data sync: changes to notes update the view instantly
-- Switch views via command palette or the view header controls
+| Feature | Free | Premium |
+| --- | :---: | :---: |
+| Table view: sortable, filterable spreadsheet of your notes with frontmatter columns | Yes | |
+| Kanban view: drag-and-drop board grouped by a status field | Yes | |
+| Card move via right-click or long-press menu (works on mobile) | Yes | |
+| Create notes directly from the board with valid frontmatter | Yes | |
+| Live sync: vault edits update the views automatically | Yes | |
+| Text filter across titles and properties | Yes | |
+| Calendar view mapping notes to dates | | In development |
+| Gallery view for image-rich collections | | In development |
+| Timeline view for date-range planning | | In development |
+| Portfolio view for high-level dashboards | | In development |
+| Advanced filter and sort combinations with saved presets | | In development |
+| CSV export of any view | | In development |
 
-### Premium
-- Calendar view mapping notes to dates
-- Gallery view for image-rich or card-style collections
-- Timeline view for date-range project planning
-- Portfolio view for high-level project dashboards
-- Advanced filter and sort combinations with saved presets
-- CSV export of any view
-- Get Premium at [arcadia-studio.lemonsqueezy.com](https://arcadia-studio.lemonsqueezy.com)
+The current release ships the free Table and Kanban views. Premium views are in development and unlock automatically in upcoming releases for anyone with an active license. You can purchase and activate a license now at [arcadia-studio.lemonsqueezy.com](https://arcadia-studio.lemonsqueezy.com).
 
 ## Installation
 
-1. Open Obsidian Settings
-2. Go to Community Plugins and disable Safe Mode
-3. Click Browse and search for "Arcadia Projects"
-4. Install and enable the plugin
+The Community Plugins listing is pending review. Until it is approved, install with one of these methods:
 
-## Manual Installation
+### Manual install from GitHub releases
 
-1. Download the latest release from [GitHub Releases](https://github.com/Arcadia-Studio/obsidian-arcadia-projects/releases)
-2. Extract to your vault's `.obsidian/plugins/arcadia-projects/` folder
-3. Reload Obsidian and enable the plugin
+1. Download `main.js`, `manifest.json`, and `styles.css` from the latest [GitHub release](https://github.com/Arcadia-Studio/obsidian-arcadia-projects/releases)
+2. Create the folder `.obsidian/plugins/arcadia-projects/` in your vault and copy the three files into it
+3. Reload Obsidian, then enable Arcadia Projects under Settings > Community plugins
 
-## Usage
+### BRAT
 
-Open the Projects view via the ribbon icon (layout-dashboard) or the "Open Project View" command. Use "Switch to Table View" and "Switch to Kanban View" commands to change the active view from anywhere in Obsidian.
+1. Install the [BRAT](https://obsidian.md/plugins?id=obsidian42-brat) plugin from Community plugins
+2. In BRAT, choose "Add beta plugin" and enter `Arcadia-Studio/obsidian-arcadia-projects`
+3. Enable Arcadia Projects under Settings > Community plugins
 
-The Kanban view groups notes by a configurable frontmatter field (default: `status`). Set a `status` field in your note YAML and Arcadia Projects will place it in the matching column automatically.
+## Quick start
 
-## Premium License
+1. Open Settings > Arcadia Projects and set the project folder (for example `Projects/`)
+2. Give each project note a `status` frontmatter field, for example:
 
-Arcadia Projects uses a freemium model. Core features are free. Premium features require a license key from [Lemon Squeezy](https://arcadia-studio.lemonsqueezy.com).
+   ```yaml
+   ---
+   status: in-progress
+   due: 2026-07-01
+   tags:
+     - client-work
+   ---
+   ```
 
-To activate: Settings > Arcadia Projects > Enter License Key
+3. Click the layout-dashboard ribbon icon, or run the "Open project view" command
+4. Switch between Table and Kanban with the tabs in the view, or with the "Switch to table view" and "Switch to kanban view" commands
+5. Drag cards between Kanban columns to update a note's status. On mobile, long-press a card and pick "Move to" instead
 
-## About Arcadia Studio
+## Settings
 
-Arcadia Studio builds productivity tools for Obsidian users. [arcadia-studio.lemonsqueezy.com](https://arcadia-studio.lemonsqueezy.com)
+| Setting | Default | What it does |
+| --- | --- | --- |
+| Project folder | (empty) | Folder containing your project notes. Subfolders are included. |
+| Status property | `status` | Frontmatter field used to group notes into Kanban columns. |
+| Status values | `todo, in-progress, done` | Comma-separated list that defines the columns and their order. Notes with other values get their own column; notes without the field land in Uncategorized. |
+| Date property | `due` | Frontmatter field used for due dates. |
+| Default view | Table | View shown when the panel opens. |
+| Card display fields | `status, due, tags` | Frontmatter fields shown on Kanban cards. |
+| License key | (empty) | Premium license key. Click Validate to activate. |
+
+## Pricing
+
+Core features (Table and Kanban) are free, with no account and no license key required. Premium features require a one-time license from [arcadia-studio.lemonsqueezy.com](https://arcadia-studio.lemonsqueezy.com).
+
+To activate: Settings > Arcadia Projects > License key > Validate. License checks are cached, and a previously activated license stays active when you are offline.
+
+## Support
+
+Questions, bug reports, and feature requests: open an issue on [GitHub](https://github.com/Arcadia-Studio/obsidian-arcadia-projects/issues) or email [arcadiastudio77@gmail.com](mailto:arcadiastudio77@gmail.com).
+
+## License
+
+The plugin code is released under the MIT license. See [LICENSE](LICENSE).

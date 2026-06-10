@@ -1,6 +1,6 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, ButtonComponent, Notice, PluginSettingTab, Setting } from "obsidian";
 import type ArcadiaProjectsPlugin from "./main";
-import { validateLicense } from "./license";
+import { toStoredStatus, validateLicense } from "./license";
 
 export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 	plugin: ArcadiaProjectsPlugin;
@@ -99,15 +99,15 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl).setName('License').setHeading();
+		new Setting(containerEl).setName("License").setHeading();
 
 		const licenseStatus = this.plugin.settings.licenseStatus;
 		const isPro = this.plugin.settings.isPro && licenseStatus?.valid;
 		const statusDesc = isPro
-			? `Active${licenseStatus?.customerEmail ? ` (${licenseStatus.customerEmail})` : ""}${licenseStatus?.expiresAt ? ` - expires ${licenseStatus.expiresAt}` : ""}`
+			? `Active${licenseStatus?.customerEmail ? ` (${licenseStatus.customerEmail})` : ""}${licenseStatus?.expiresAt ? `, expires ${licenseStatus.expiresAt}` : ""}`
 			: "No active license. Enter your license key and click Validate.";
 
-		const licenseStatusEl = containerEl.createEl("p", {
+		containerEl.createEl("p", {
 			text: `License status: ${statusDesc}`,
 			cls: isPro ? "mod-success" : "mod-warning",
 		});
@@ -128,25 +128,7 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 				btn
 					.setButtonText("Validate")
 					.setCta()
-					.onClick(() => {
-						const key = this.plugin.settings.licenseKey.trim();
-						if (!key) return;
-						btn.setButtonText("Checking...").setDisabled(true);
-						void validateLicense(key).then((status) => {
-							this.plugin.settings.licenseStatus = status;
-							this.plugin.settings.isPro = status.valid;
-							void this.plugin.saveSettings().then(() => {
-								btn.setButtonText("Validate").setDisabled(false);
-								if (status.valid) {
-									licenseStatusEl.textContent = `License status: Active${status.customerEmail ? ` (${status.customerEmail})` : ""}`;
-									licenseStatusEl.className = "mod-success";
-								} else {
-									licenseStatusEl.textContent = "License status: invalid or expired. Check your key and try again.";
-									licenseStatusEl.className = "mod-warning";
-								}
-							});
-						});
-					})
+					.onClick(() => { void this.validateAndRefresh(btn); })
 			);
 
 		new Setting(containerEl)
@@ -157,5 +139,34 @@ export class ArcadiaProjectsSettingTab extends PluginSettingTab {
 						window.open("https://arcadia-studio.lemonsqueezy.com", "_blank");
 					})
 			);
+	}
+
+	private async validateAndRefresh(btn: ButtonComponent): Promise<void> {
+		const key = this.plugin.settings.licenseKey.trim();
+		if (!key) {
+			new Notice("Enter a license key first.");
+			return;
+		}
+
+		btn.setButtonText("Checking...").setDisabled(true);
+		const result = await validateLicense(key);
+
+		if (result.offline) {
+			// Never downgrade a cached license on a network failure
+			new Notice("Could not reach the license server. Check your connection and try again. A previously activated license stays active.");
+			btn.setButtonText("Validate").setDisabled(false);
+			return;
+		}
+
+		this.plugin.settings.licenseStatus = toStoredStatus(result);
+		this.plugin.settings.isPro = result.valid;
+		await this.plugin.saveSettings();
+
+		new Notice(
+			result.valid
+				? "License activated. Premium features are unlocked."
+				: "The license key is invalid or expired. Check the key and try again."
+		);
+		this.display();
 	}
 }
