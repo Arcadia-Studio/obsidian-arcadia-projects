@@ -783,7 +783,7 @@ var CreateNoteModal = class extends import_obsidian5.Modal {
       text.setPlaceholder("Note title").onChange((value) => {
         this.noteTitle = value.trim();
       });
-      activeWindow.setTimeout(() => text.inputEl.focus(), 50);
+      window.setTimeout(() => text.inputEl.focus(), 50);
       text.inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.isComposing) {
           void this.createNote();
