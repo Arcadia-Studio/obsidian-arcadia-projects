@@ -1,8 +1,8 @@
 {
 	"id": "arcadia-projects",
 	"name": "Arcadia Projects",
-	"version": "1.0.7",
-	"minAppVersion": "1.4.4",
+	"version": "1.0.8",
+	"minAppVersion": "1.7.2",
 	"description": "Multi-view project management: Table and Kanban views over your vault notes with filtering and sorting.",
 	"author": "Peter J. Carter",
 	"authorUrl": "https://theologyinfocus.org",

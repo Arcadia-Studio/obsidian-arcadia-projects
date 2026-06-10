@@ -237,7 +237,7 @@ export class ProjectDataManager extends Events {
 
 	/** Update a note's frontmatter property */
 	async updateNoteProperty(file: TFile, property: string, value: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			fm[property] = value;
 		});
 	}
@@ -268,7 +268,7 @@ export class ProjectDataManager extends Events {
 		// Create the note empty, then let Obsidian write the frontmatter so the
 		// YAML is always valid regardless of the property values.
 		const file = await this.app.vault.create(filePath, "");
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			for (const [key, val] of Object.entries(properties)) {
 				fm[key] = val;
 			}

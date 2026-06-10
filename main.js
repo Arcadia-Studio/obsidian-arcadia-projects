@@ -783,7 +783,7 @@ var CreateNoteModal = class extends import_obsidian5.Modal {
       text.setPlaceholder("Note title").onChange((value) => {
         this.noteTitle = value.trim();
       });
-      setTimeout(() => text.inputEl.focus(), 50);
+      activeWindow.setTimeout(() => text.inputEl.focus(), 50);
       text.inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.isComposing) {
           void this.createNote();
@@ -1011,7 +1011,8 @@ var ArcadiaProjectsPlugin = class extends import_obsidian7.Plugin {
     (_a = this.dataManager) == null ? void 0 : _a.stopListening();
   }
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const stored = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, stored != null ? stored : {});
   }
   async saveSettings() {
     await this.saveData(this.settings);

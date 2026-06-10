@@ -275,7 +275,7 @@ class CreateNoteModal extends Modal {
 				this.noteTitle = value.trim();
 			});
 			// Focus the input
-			setTimeout(() => text.inputEl.focus(), 50);
+			activeWindow.setTimeout(() => text.inputEl.focus(), 50);
 
 			// Enter key to create (ignore IME composition)
 			text.inputEl.addEventListener("keydown", (e) => {
